@@ -24,13 +24,26 @@ typedef struct {
     uint64_t black_kings;
 } Board;
 
+void print_bitboard(uint64_t board) {
+    for (int row = 7; row >= 0; row--) {
+        printf("%d |", row + 1);
+        for (int col = 0; col < 8; col++) {
+            int square = row * 8 + col;
+            char symbol = (board & (1ULL << square)) ? '1' : '0';
+            printf(" %c", symbol);
+        };
+        printf(" |\n");
+    };
+    printf("    a b c d e f g h\n");
+}
+
 int main(void) {
 
     Board board = {0};
 
     board.white_pieces |= (1ULL << 28);
 
-    printf("Hello\n");
     printf("This is the white_pieces in decimal: %lu\n", board.white_pieces);
+    print_bitboard(board.white_pieces);
     return 0;
 }
