@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdbool.h>
 
 // bb = (black top, white bottom)
 // a8 b8 c8 d8 e8 f8 g8 h8 > 56 to 63
@@ -40,6 +41,16 @@ void print_bitboard(uint64_t board) {
 
 // input will be like "pe2e4" (piece, starting pos, ending pos)
 // make it more explanatory in the future (simple for me rn)
+bool valid_input(char* pos) {
+    if (strlen(pos) != 2) return false;
+
+    char file = pos[0];
+    char rank = pos[1];
+
+    bool valid = ((file >= 'a' && file <= 'h') && (rank >= '1' && rank <= '8'));
+    return valid;
+}
+
 char* player_input(char* buffer, size_t size) {
     if (buffer == NULL || size == 0) {
         return NULL;
@@ -64,9 +75,22 @@ int main(void) {
 
     printf("This is the white_pieces in decimal: %lu\n", board.white_pieces);
     print_bitboard(board.white_pieces);
-    puts("Please choose a starting location");
-    char start[3];
-    player_input(start, sizeof(start));
+    puts("Please choose a start and end location");
+    char move[5];
+    char start[3] = "";
+    char end[3] = "";
+    while (!valid_input(start) || !valid_input(end)) {
+        player_input(move, sizeof(move));
+        printf("%s\n", move);
+        if (strlen(move) != 4) continue;
+
+        start[0] = move[0];
+        start[1] = move[1];
+        start[2] = '\0';
+        end[0] = move[2];
+        end[1] = move[3];
+        end[2] = '\0';
+    }
     printf("%s\n", start);
     return 0;
 }
