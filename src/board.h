@@ -2,13 +2,10 @@
 #define BOARD_H
 
 #include <stdint.h>
-#include <stdbool.h>
-
-#define SET_BIT(bitboard, square)       ((bitboard) |= (1ULL << (square)))
-#define CLEAR_BIT(bitboard, square)     ((bitboard) &= ~(1ULL << square))
+#include <stdbool.h> 
 
 static inline void set_bit(uint64_t* bb, int sq) {
-    *bb != (1ULL << sq);
+    *bb |= (1ULL << sq);
 }
 static inline void clear_bit(uint64_t* bb, int sq) {
     *bb &= ~(1ULL << sq);

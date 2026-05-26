@@ -61,7 +61,7 @@ static Move string_to_move(char* string) {
 int main(void) {
     Board board = {0};
 
-    SET_BIT(board.white_pieces, 28);
+    set_bit(&board.white_pieces, 28);
 
     printf("This is the white_pieces in decimal: %lu\n", board.white_pieces);
     print_bitboard(board.white_pieces);
@@ -81,7 +81,7 @@ int main(void) {
         end[2] = '\0';
     }
     Move move = string_to_move(move_string);
-    SET_BIT(board.white_pieces, move.end);
+    set_bit(&board.white_pieces, move.end);
     print_bitboard(board.white_pieces);
     return 0;
 }
