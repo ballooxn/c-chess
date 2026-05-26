@@ -3,6 +3,10 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
+#include <ctype.h>
+
+#define TO_BITS(rank, file)     ((rank) * 8 + (file))
+#define MOVE_PIECE(bitboard, square)  ((bitboard) |= (1ULL << (square)))
 
 // bb = (black top, white bottom)
 // a8 b8 c8 d8 e8 f8 g8 h8 > 56 to 63
@@ -25,6 +29,11 @@ typedef struct {
     uint64_t white_kings;
     uint64_t black_kings;
 } Board;
+
+typedef struct {
+    int start;
+    int end;
+} Move;
 
 void print_bitboard(uint64_t board) {
     for (int row = 7; row >= 0; row--) {
@@ -67,30 +76,52 @@ char* player_input(char* buffer, size_t size) {
     return buffer;
 }
 
+int file_to_int(char file) {
+    return tolower(file) - 'a';
+}
+
+int rank_to_int(char rank) {
+    return rank - '1';
+}
+
+int pos_to_int(char rank, char file) {
+    int int_rank = rank_to_int(rank);
+    int int_file = file_to_int(file);
+    return TO_BITS(int_rank, int_file);
+}
+
+Move string_to_move(char* string) {
+    int start = pos_to_int(string[1], string[0]);
+    int end = pos_to_int(string[3], string[2]);
+    Move move = {.start = start, .end = end};
+    return move;
+}
+
 int main(void) {
 
     Board board = {0};
 
-    board.white_pieces |= (1ULL << 28);
+    MOVE_PIECE(board.white_pieces, 28);
 
     printf("This is the white_pieces in decimal: %lu\n", board.white_pieces);
     print_bitboard(board.white_pieces);
     puts("Please choose a start and end location");
-    char move[5];
+    char move_string[5];
     char start[3] = "";
     char end[3] = "";
     while (!valid_input(start) || !valid_input(end)) {
-        player_input(move, sizeof(move));
-        printf("%s\n", move);
-        if (strlen(move) != 4) continue;
+        player_input(move_string, sizeof(move_string));
+        if (strlen(move_string) != 4) continue;
 
-        start[0] = move[0];
-        start[1] = move[1];
+        start[0] = move_string[0];
+        start[1] = move_string[1];
         start[2] = '\0';
-        end[0] = move[2];
-        end[1] = move[3];
+        end[0] = move_string[2];
+        end[1] = move_string[3];
         end[2] = '\0';
     }
-    printf("%s\n", start);
+    Move move = string_to_move(move_string);
+    printf("%d\n", move.start);
+    printf("%d\n", move.end);
     return 0;
 }
