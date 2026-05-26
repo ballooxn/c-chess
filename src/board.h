@@ -37,5 +37,6 @@ typedef struct {
 } Board;
 
 void print_bitboard(uint64_t board);
+Board init_board(void);
 
 #endif

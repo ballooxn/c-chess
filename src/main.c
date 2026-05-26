@@ -59,12 +59,14 @@ static Move string_to_move(char* string) {
 }
 
 int main(void) {
-    Board board = {0};
+    Board board = init_board();
 
     set_bit(&board.white_pieces, 28);
 
-    printf("This is the white_pieces in decimal: %lu\n", board.white_pieces);
+    printf("This is the white_pieces:\n");
     print_bitboard(board.white_pieces);
+    printf("these are black pieces\n");
+    print_bitboard(board.black_pieces);
     puts("Please choose a start and end location");
     char move_string[5];
     char start[3] = "";
