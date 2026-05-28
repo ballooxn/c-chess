@@ -61,6 +61,7 @@ static Move string_to_move(char* string, Board board, Color color) {
 
 int main(void) {
     Board board = init_board();
+    init_attacks();
 
     set_bit(&board.pieces[WHITE][ALL], 28);
 

@@ -59,7 +59,7 @@ Board init_board(void) {
     Board board;
     board.pieces[WHITE][PAWN]   = 0x000000000000FF00ULL;
     board.pieces[WHITE][KNIGHT] = 0x0000000000000042ULL;
-    board.pieces[WHITE]][BISHOP] = 0x0000000000000024ULL;
+    board.pieces[WHITE][BISHOP] = 0x0000000000000024ULL;
     board.pieces[WHITE][ROOK]   = 0x0000000000000081ULL;
     board.pieces[WHITE][QUEEN]  = 0x0000000000000008ULL;
     board.pieces[WHITE][KING]   = 0x0000000000000010ULL;
@@ -87,6 +87,19 @@ void init_pawn_attacks(void) {
 void init_knight_attacks(void) {
     for (int sq = 0; sq < 64; sq++) {
         uint64_t attacks = 0;
+        int rank = sq / 8;
+        int file = sq % 8;
+        for (int i = 0; i < 8; i++) {
+            int target = sq + knight_offsets[i];
+            int t_rank = target / 8;
+            int t_file = target % 8;
+            if (target >= 0 && target < 64 &&
+                ((abs(t_rank - rank) == 2 && abs(t_file - file) == 1) ||
+                (abs(t_rank - rank) == 1 && abs(t_file - file) == 2))) {
+                set_bit(&attacks, target);
+            }
+        }
+        knight_attacks[sq] = attacks;
     }
 }
 
@@ -95,7 +108,7 @@ void init_king_attacks(void) {
 }
 
 void init_attacks(void) {
-
+    init_knight_attacks();
 }
 
 PieceType get_piece(Board board, int sq, Color color) {
