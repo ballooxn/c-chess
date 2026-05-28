@@ -2,7 +2,10 @@
 #define BOARD_H
 
 #include <stdint.h>
-#include <stdbool.h> 
+#include <stdbool.h>
+
+typedef enum {WHITE, BLACK, COLOR_NUM} Color;
+typedef enum {PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING, ALL, PIECE_NUM} PieceType;
 
 static inline void set_bit(uint64_t* bb, int sq) {
     *bb |= (1ULL << sq);
@@ -17,26 +20,15 @@ static inline bool get_bit(uint64_t bb, int sq) {
 typedef struct {
     int start;
     int end;
+    char piece;
 } Move;
 
 typedef struct {
-    uint64_t white_pieces;
-    uint64_t black_pieces;
-    uint64_t white_pawns;
-    uint64_t black_pawns;
-    uint64_t white_bishops;
-    uint64_t black_bishops;
-    uint64_t white_rooks;
-    uint64_t black_rooks;
-    uint64_t white_knights;
-    uint64_t black_knights;
-    uint64_t white_queens;
-    uint64_t black_queens;
-    uint64_t white_kings;
-    uint64_t black_kings;
+    uint64_t pieces[COLOR_NUM][PIECE_NUM];  // one for each piece/all pieces
 } Board;
 
 void print_bitboard(uint64_t board);
 Board init_board(void);
+bool is_legal(Move move, Color color);
 
 #endif

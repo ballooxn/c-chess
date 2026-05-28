@@ -16,26 +16,41 @@
 
 Board init_board(void) {
     Board board;
-    board.white_pawns   = 0x000000000000FF00ULL;
-    board.black_pawns   = 0x00FF000000000000ULL;
-    board.white_bishops = 0x0000000000000024ULL;
-    board.black_bishops = 0x2400000000000000ULL;
-    board.white_rooks   = 0x0000000000000081ULL;
-    board.black_rooks   = 0x8100000000000000ULL;
-    board.white_knights = 0x0000000000000042ULL;
-    board.black_knights = 0x4200000000000000ULL;
-    board.white_queens  = 0x0000000000000008ULL;
-    board.black_queens  = 0x0800000000000000ULL;
-    board.white_kings   = 0x0000000000000010ULL;
-    board.black_kings   = 0x1000000000000000ULL;
+    board.pieces[WHITE][PAWN]   = 0x000000000000FF00ULL;
+    board.pieces[WHITE][KNIGHT] = 0x0000000000000042ULL;
+    board.pieces[WHITE][BISHOP] = 0x0000000000000024ULL;
+    board.pieces[WHITE][ROOK]   = 0x0000000000000081ULL;
+    board.pieces[WHITE][QUEEN]  = 0x0000000000000008ULL;
+    board.pieces[WHITE][KING]   = 0x0000000000000010ULL;
 
-    board.white_pieces = board.white_pawns | board.white_knights |
-                         board.white_bishops | board.white_rooks |
-                         board.white_queens | board.white_kings;
-    board.black_pieces = board.black_pawns | board.black_knights |
-                         board.black_bishops | board.black_rooks |
-                         board.black_queens | board.black_kings;
+    board.pieces[BLACK][PAWN]   = 0x00FF000000000000ULL;
+    board.pieces[BLACK][KNIGHT] = 0x4200000000000000ULL;
+    board.pieces[BLACK][BISHOP] = 0x2400000000000000ULL;
+    board.pieces[BLACK][ROOK]   = 0x8100000000000000ULL;
+    board.pieces[BLACK][QUEEN]  = 0x0800000000000000ULL;
+    board.pieces[BLACK][KING]   = 0x1000000000000000ULL;
+
+    board.pieces[WHITE][ALL] =  board.pieces[WHITE][PAWN] | board.pieces[WHITE][KNIGHT] |
+                                board.pieces[WHITE][BISHOP] | board.pieces[WHITE][ROOK] |
+                                board.pieces[WHITE][QUEEN] | board.pieces[WHITE][KING];
+    board.pieces[BLACK][ALL] =  board.pieces[BLACK][PAWN] | board.pieces[BLACK][KNIGHT] |
+                                board.pieces[BLACK][BISHOP] | board.pieces[BLACK][ROOK] |
+                                board.pieces[BLACK][QUEEN] | board.pieces[BLACK][KING];
     return board;
+}
+
+PieceType get_piece(Board board, int sq, Color color) {
+    for (PieceType pt = PAWN; pt < PIECE_NUM; pt++) {
+        if (get_bit(board.pieces[color][pt], sq)) {
+            return pt;
+        }
+    }
+}
+
+bool is_legal(Board board, Move move, Color color) {
+    if (get_bit(board.pieces[color][ALL], move.end)) return false;
+
+
 }
 
 void print_bitboard(uint64_t board) {

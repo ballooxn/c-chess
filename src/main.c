@@ -54,7 +54,8 @@ int pos_to_int(char rank, char file) {
 static Move string_to_move(char* string) {
     int start = pos_to_int(string[1], string[0]);
     int end = pos_to_int(string[3], string[2]);
-    Move move = {.start = start, .end = end};
+    char piece = get_piece(start);
+    Move move = {.start = start, .end = end, .piece = piece};
     return move;
 }
 
