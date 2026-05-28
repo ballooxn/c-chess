@@ -24,7 +24,13 @@ static inline bool get_bit(uint64_t bb, int sq) {
 
 extern uint64_t knight_attacks[64];
 extern uint64_t king_attacks[64];
-extern uint64_t pawn_attacks[2][64];
+extern uint64_t white_pawn_pushes[64];
+extern uint64_t white_pawn_attacks[64];
+extern uint64_t black_pawn_pushes[64];
+extern uint64_t black_pawn_attacks[64];
+
+extern uint64_t line[64][64];
+extern uint64_t between[64][64];
 
 typedef struct {
     int start;
@@ -34,6 +40,7 @@ typedef struct {
 
 typedef struct {
     uint64_t pieces[COLOR_NUM][PIECE_NUM];  // one for each piece/all pieces
+    uint64_t occupied;
 } Board;
 
 Board init_board(void);
