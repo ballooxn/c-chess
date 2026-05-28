@@ -225,22 +225,38 @@ PieceType get_piece(Board board, int sq, Color color) {
 
 bool valid_move(Board board, PieceType piece, Move move, Color color) {
     bool pawn_double_push = (piece == PAWN && abs((move.start / 8) - (move.end / 8)) == 2);
+    printf("%d\n", piece);
+    print_bitboard(knight_attacks[move.start]);
     if (piece == PAWN && !pawn_double_push) {
-        bool is_attack = true;
         switch (color) {
-            case WHITE:
-                return true;
+            case WHITE: 
+                if (get_bit(white_pawn_attacks[move.start], move.end) && get_bit(board.pieces[BLACK][ALL], move.end)) return true;
+                if (get_bit(white_pawn_pushes[move.start], move.end) && !get_bit(board.occupied, move.end)) return true;
+                break;
             case BLACK:
-                return true;
+                if (get_bit(black_pawn_attacks[move.start], move.end) && get_bit(board.pieces[WHITE][ALL], move.end)) return true;
+                if (get_bit(black_pawn_pushes[move.start], move.end) && !get_bit(board.occupied, move.end)) return true;
+                break;
             default:
                 return false;
         }
-    } else if (piece == KNIGHT || piece == KING) {
-
+    } else if (piece == KNIGHT && get_bit(knight_attacks[move.start], move.end)) {
+        return true;
+    } else if (piece == KING && get_bit(king_attacks[move.start], move.end)) {
+        return true;
     } else if (piece == QUEEN || piece == BISHOP || piece == ROOK || pawn_double_push) {
         // handle sliding piece
         if (line[move.start][move.end] == 0) return false;
         if (between[move.start][move.end] & board.occupied) return false;
+
+        if (pawn_double_push) return true;
+
+        int delta_rank = abs((move.start / 8) - (move.end / 8));
+        int delta_file = abs((move.start % 8) - (move.end % 8));
+        if (piece == ROOK && !(delta_rank == 0 || delta_file == 0)) return false;
+        if (piece == BISHOP && delta_rank != delta_file) return false;
+
+        return true;
     } else {
         puts("YIKES!");
     }
@@ -250,7 +266,7 @@ bool valid_move(Board board, PieceType piece, Move move, Color color) {
 
 bool is_legal(Board board, Move move, Color color) {
     if (get_bit(board.pieces[color][ALL], move.end)) return false;
-    PieceType piece = get_piece(board, move.end, color);
+    PieceType piece = get_piece(board, move.start, color);
 
     if (piece == NO_PIECE) return false;
 

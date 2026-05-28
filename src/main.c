@@ -6,11 +6,13 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <time.h>
 
 #define TO_BITS(rank, file)     ((rank) * 8 + (file))
 
 // input will be like "pe2e4" (piece, starting pos, ending pos)
 // make it more explanatory in the future (simple for me rn)
+
 static bool valid_input(char* pos) {
     if (strlen(pos) != 2) return false;
 
@@ -87,9 +89,13 @@ int main(void) {
         end[2] = '\0';
     }
     Move move = string_to_move(move_string, board, WHITE);
+    bool is_valid = is_legal(board, move, WHITE);
+    if (is_valid) {
+        puts("VALID MOVE");
+    } else {
+        puts("NOT VALID!!!");
+    }
     set_bit(&board.pieces[WHITE][ALL], move.end);
     print_bitboard(board.pieces[WHITE][ALL]);
-    PieceType piece = get_piece(board, move.start, WHITE);
-    printf("%d\n", piece);
     return 0;
 }
