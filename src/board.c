@@ -9,6 +9,11 @@
 
 #define MOVE_PIECE(bitboard, square)  ((bitboard) |= (1ULL << (square)))
 
+extern uint64_t knight_attacks[64];
+extern uint64_t king_attacks[64];
+extern uint64_t pawn_attacks[2][64];
+
+
 // bb = (black top, white bottom)
 // a8 b8 c8 d8 e8 f8 g8 h8 > 56 to 63
 // .....
@@ -39,6 +44,22 @@ Board init_board(void) {
     return board;
 }
 
+void init_pawn_attacks(void) {
+
+}
+
+void init_knight_attacks(void) {
+
+}
+
+void init_king_attacks(void) {
+    
+}
+
+void init_attacks(void) {
+
+}
+
 PieceType get_piece(Board board, int sq, Color color) {
     for (PieceType pt = PAWN; pt < PIECE_NUM; pt++) {
         if (get_bit(board.pieces[color][pt], sq)) {
@@ -46,6 +67,13 @@ PieceType get_piece(Board board, int sq, Color color) {
         }
     }
     return NO_PIECE;
+}
+
+bool valid_move(Board board, PieceType piece, Move move) {
+
+
+
+    return false;
 }
 
 bool is_legal(Board board, Move move, Color color) {
