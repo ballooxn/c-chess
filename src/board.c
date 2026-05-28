@@ -9,9 +9,45 @@
 
 #define MOVE_PIECE(bitboard, square)  ((bitboard) |= (1ULL << (square)))
 
-extern uint64_t knight_attacks[64];
-extern uint64_t king_attacks[64];
-extern uint64_t pawn_attacks[2][64];
+uint64_t knight_attacks[64];
+const int knight_offsets[8] = {
+    17, // 2 (rank),1 (file)
+    15, // 2,-1
+    10, // 1,2
+    6, //1,-2
+    -17, // -2,-1
+    -15, // -2,1
+    -10, // -1,-2
+    -6, // -1,2
+};
+uint64_t king_attacks[64];
+const int king_offsets[8] = {
+    8, // 1 (rank), 0 (file)
+    9, // 1,1
+    1, // 0,1
+    -7, //-1,1
+    -8, //-1,0
+    -9,// -1, -1
+    -1, // 0,-1
+    7 // 1,-1
+};
+uint64_t pawn_attacks[2][64];
+const int white_pawn_attack_offsets[2] = {
+    9, // 1, 1
+    7, // 1,-1
+};
+const  int black_pawn_attack_offsets[2] = {
+    -7, // -1,1
+    -9, // -1, -1
+};
+const int white_pawn_push_offsets[2] = {
+    8, // 1, 0
+    16, // 2, 0
+};
+const int black_pawn_push_offsets[2] = {
+    -8, // -1,0
+    -16, //-2,0
+};
 
 
 // bb = (black top, white bottom)
@@ -23,7 +59,7 @@ Board init_board(void) {
     Board board;
     board.pieces[WHITE][PAWN]   = 0x000000000000FF00ULL;
     board.pieces[WHITE][KNIGHT] = 0x0000000000000042ULL;
-    board.pieces[WHITE][BISHOP] = 0x0000000000000024ULL;
+    board.pieces[WHITE]][BISHOP] = 0x0000000000000024ULL;
     board.pieces[WHITE][ROOK]   = 0x0000000000000081ULL;
     board.pieces[WHITE][QUEEN]  = 0x0000000000000008ULL;
     board.pieces[WHITE][KING]   = 0x0000000000000010ULL;
@@ -49,11 +85,13 @@ void init_pawn_attacks(void) {
 }
 
 void init_knight_attacks(void) {
-
+    for (int sq = 0; sq < 64; sq++) {
+        uint64_t attacks = 0;
+    }
 }
 
 void init_king_attacks(void) {
-    
+
 }
 
 void init_attacks(void) {
