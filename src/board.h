@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 typedef enum {WHITE, BLACK, COLOR_NUM} Color;
-typedef enum {PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING, ALL, PIECE_NUM} PieceType;
+typedef enum {PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING, ALL, PIECE_NUM, NO_PIECE = -1} PieceType;
 
 static inline void set_bit(uint64_t* bb, int sq) {
     *bb |= (1ULL << sq);
@@ -29,6 +29,7 @@ typedef struct {
 
 void print_bitboard(uint64_t board);
 Board init_board(void);
-bool is_legal(Move move, Color color);
+bool is_legal(Board board, Move move, Color color);
+PieceType get_piece(Board board, int sq, Color color);
 
 #endif

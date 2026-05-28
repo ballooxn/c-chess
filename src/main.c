@@ -51,10 +51,10 @@ int pos_to_int(char rank, char file) {
     return TO_BITS(int_rank, int_file);
 }
 
-static Move string_to_move(char* string) {
+static Move string_to_move(char* string, Board board, Color color) {
     int start = pos_to_int(string[1], string[0]);
     int end = pos_to_int(string[3], string[2]);
-    char piece = get_piece(start);
+    char piece = get_piece(board, start, color);
     Move move = {.start = start, .end = end, .piece = piece};
     return move;
 }
@@ -62,18 +62,20 @@ static Move string_to_move(char* string) {
 int main(void) {
     Board board = init_board();
 
-    set_bit(&board.white_pieces, 28);
+    set_bit(&board.pieces[WHITE][ALL], 28);
 
     printf("This is the white_pieces:\n");
-    print_bitboard(board.white_pieces);
+    print_bitboard(board.pieces[WHITE][ALL]);
     printf("these are black pieces\n");
-    print_bitboard(board.black_pieces);
+    print_bitboard(board.pieces[BLACK][ALL]);
     puts("Please choose a start and end location");
     char move_string[5];
     char start[3] = "";
     char end[3] = "";
+    // change to do while loop
     while (!valid_input(start) || !valid_input(end)) {
         player_input(move_string, sizeof(move_string));
+        // implement false if no piece on start square
         if (strlen(move_string) != 4) continue;
 
         start[0] = move_string[0];
@@ -83,8 +85,10 @@ int main(void) {
         end[1] = move_string[3];
         end[2] = '\0';
     }
-    Move move = string_to_move(move_string);
-    set_bit(&board.white_pieces, move.end);
-    print_bitboard(board.white_pieces);
+    Move move = string_to_move(move_string, board, WHITE);
+    set_bit(&board.pieces[WHITE][ALL], move.end);
+    print_bitboard(board.pieces[WHITE][ALL]);
+    PieceType piece = get_piece(board, move.start, WHITE);
+    printf("%d\n", piece);
     return 0;
 }

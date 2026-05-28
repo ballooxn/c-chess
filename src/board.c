@@ -45,12 +45,13 @@ PieceType get_piece(Board board, int sq, Color color) {
             return pt;
         }
     }
+    return NO_PIECE;
 }
 
 bool is_legal(Board board, Move move, Color color) {
     if (get_bit(board.pieces[color][ALL], move.end)) return false;
 
-
+    return true;
 }
 
 void print_bitboard(uint64_t board) {
