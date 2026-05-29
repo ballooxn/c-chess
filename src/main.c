@@ -65,38 +65,42 @@ int main(void) {
     Board board = init_board();
     init_attacks();
 
-    set_bit(&board.pieces[WHITE][ALL], 28);
+    bool is_winner = false;
+    Color player = BLACK;
 
-    puts("Please choose a start and end location");
-    print_bitboard(board.pieces[WHITE][ALL]);
-    Move move;
-    bool is_valid = false;
     do {
-        char move_string[5];
-        char start[3] = "";
-        char end[3] = "";
-        // change to do while loop
+        player = (player == BLACK) ? WHITE : BLACK;
+        print_board(&board);
+        puts("Please choose a start and end location");
+        Move move;
+        bool is_valid = false;
         do {
-            player_input(move_string, sizeof(move_string));
-            // implement false if no piece on start square
-            if (strlen(move_string) != 4) continue;
+            char move_string[5];
+            char start[3] = "";
+            char end[3] = "";
+            // change to do while loop
+            do {
+                player_input(move_string, sizeof(move_string));
+                // implement false if no piece on start square
+                if (strlen(move_string) != 4) continue;
 
-            start[0] = move_string[0];
-            start[1] = move_string[1];
-            start[2] = '\0';
-            end[0] = move_string[2];
-            end[1] = move_string[3];
-            end[2] = '\0';
-        } while (!valid_input(start) || !valid_input(end));
-        move = string_to_move(move_string, board, WHITE);
-        is_valid = is_legal(board, move, WHITE);
-        if (is_valid) {
-            puts("VALID MOVE");
-        } else {
-            puts("NOT VALID!!!");
-        }
-    } while (!is_valid);
-    move_piece(&board, move, WHITE);
-    print_bitboard(board.pieces[WHITE][ALL]);
+                start[0] = move_string[0];
+                start[1] = move_string[1];
+                start[2] = '\0';
+                end[0] = move_string[2];
+                end[1] = move_string[3];
+                end[2] = '\0';
+            } while (!valid_input(start) || !valid_input(end));
+            move = string_to_move(move_string, board, player);
+            is_valid = is_legal(board, move, player);
+            if (is_valid) {
+                puts("VALID MOVE");
+            } else {
+                puts("NOT VALID!!!");
+            }
+        } while (!is_valid);
+        move_piece(&board, move, player);
+    } while (!is_winner);
+    print_board(&board);
     return 0;
 }

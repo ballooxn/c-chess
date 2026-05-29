@@ -224,13 +224,12 @@ PieceType get_piece(Board board, int sq, Color color) {
 
 void move_piece(Board* board, Move move, Color color) {
     PieceType piece = get_piece(*board, move.start, color);
-    PieceType target_piece = get_piece(*board, move.end, color);
+    Color opp = (color == WHITE) ? BLACK : WHITE;
+    PieceType target_piece = get_piece(*board, move.end, opp);
     clear_bit(&board->pieces[color][piece], move.start);
     clear_bit(&board->occupied, move.start);
     clear_bit(&board->pieces[color][ALL], move.start);
     if (target_piece != NO_PIECE) {
-        Color opp = (color == WHITE) ? BLACK : WHITE;
-        if (opp == BLACK) puts("opponent is black!!!");
         clear_bit(&board->pieces[opp][target_piece], move.end);
         clear_bit(&board->pieces[opp][ALL], move.end);
     }
@@ -296,6 +295,38 @@ void print_bitboard(uint64_t board) {
             int square = row * 8 + col;
             char symbol = (board & (1ULL << square)) ? '1' : '0';
             printf(" %c", symbol);
+        };
+        printf(" |\n");
+    };
+    printf("    a b c d e f g h\n");
+}
+
+char* piece_symbols[2][6] = {
+        [WHITE] = { "♟", "♞", "♝", "♜", "♛", "♚" },
+        [BLACK] = { "♙", "♘", "♗", "♖", "♕", "♔" }
+    };
+
+void print_board(Board* board) {
+    char* display_board[8][8];
+
+    for (int r = 0; r < 8; r++)
+        for (int f = 0; f < 8; f++)
+            display_board[r][f] = ".";
+
+    for (Color color = WHITE; color < COLOR_NUM; color++) {
+        for (PieceType pt = PAWN; pt <= KING; pt++) {
+            for (int i = 0; i < 64; i++) {
+                if (get_bit(board->pieces[color][pt], i)) {
+                    display_board[i / 8][i % 8] = piece_symbols[color][pt];
+                }
+            }
+        }
+    }
+
+    for (int row = 7; row >= 0; row--) {
+        printf("%d |", row + 1);
+        for (int col = 0; col < 8; col++) {
+            printf(" %s", display_board[row][col]);
         };
         printf(" |\n");
     };
