@@ -211,7 +211,6 @@ void init_attacks(void) {
     init_king_attacks();
     init_pawn_attacks();
     init_sliding_tables();
-    print_bitboard(between[0][63]);
 }
 
 PieceType get_piece(Board board, int sq, Color color) {
@@ -223,10 +222,25 @@ PieceType get_piece(Board board, int sq, Color color) {
     return NO_PIECE;
 }
 
+void move_piece(Board* board, Move move, Color color) {
+    PieceType piece = get_piece(*board, move.start, color);
+    PieceType target_piece = get_piece(*board, move.end, color);
+    clear_bit(&board->pieces[color][piece], move.start);
+    clear_bit(&board->occupied, move.start);
+    clear_bit(&board->pieces[color][ALL], move.start);
+    if (target_piece != NO_PIECE) {
+        Color opp = (color == WHITE) ? BLACK : WHITE;
+        if (opp == BLACK) puts("opponent is black!!!");
+        clear_bit(&board->pieces[opp][target_piece], move.end);
+        clear_bit(&board->pieces[opp][ALL], move.end);
+    }
+    set_bit(&board->pieces[color][piece], move.end);
+    set_bit(&board->pieces[color][ALL], move.end);
+    set_bit(&board->occupied, move.end);
+}
+
 bool valid_move(Board board, PieceType piece, Move move, Color color) {
     bool pawn_double_push = (piece == PAWN && abs((move.start / 8) - (move.end / 8)) == 2);
-    printf("%d\n", piece);
-    print_bitboard(knight_attacks[move.start]);
     if (piece == PAWN && !pawn_double_push) {
         switch (color) {
             case WHITE: 

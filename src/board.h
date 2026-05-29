@@ -45,8 +45,9 @@ typedef struct {
 
 Board init_board(void);
 void init_attacks(void);
-void print_bitboard(uint64_t board);
-bool is_legal(Board board, Move move, Color color);
 PieceType get_piece(Board board, int sq, Color color);
+void move_piece(Board* board, Move move, Color color);
+bool is_legal(Board board, Move move, Color color);
+void print_bitboard(uint64_t board);
 
 #endif

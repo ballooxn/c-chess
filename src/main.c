@@ -67,35 +67,36 @@ int main(void) {
 
     set_bit(&board.pieces[WHITE][ALL], 28);
 
-    printf("This is the white_pieces:\n");
-    print_bitboard(board.pieces[WHITE][ALL]);
-    printf("these are black pieces\n");
-    print_bitboard(board.pieces[BLACK][ALL]);
     puts("Please choose a start and end location");
-    char move_string[5];
-    char start[3] = "";
-    char end[3] = "";
-    // change to do while loop
-    while (!valid_input(start) || !valid_input(end)) {
-        player_input(move_string, sizeof(move_string));
-        // implement false if no piece on start square
-        if (strlen(move_string) != 4) continue;
+    print_bitboard(board.pieces[WHITE][ALL]);
+    Move move;
+    bool is_valid = false;
+    do {
+        char move_string[5];
+        char start[3] = "";
+        char end[3] = "";
+        // change to do while loop
+        do {
+            player_input(move_string, sizeof(move_string));
+            // implement false if no piece on start square
+            if (strlen(move_string) != 4) continue;
 
-        start[0] = move_string[0];
-        start[1] = move_string[1];
-        start[2] = '\0';
-        end[0] = move_string[2];
-        end[1] = move_string[3];
-        end[2] = '\0';
-    }
-    Move move = string_to_move(move_string, board, WHITE);
-    bool is_valid = is_legal(board, move, WHITE);
-    if (is_valid) {
-        puts("VALID MOVE");
-    } else {
-        puts("NOT VALID!!!");
-    }
-    set_bit(&board.pieces[WHITE][ALL], move.end);
+            start[0] = move_string[0];
+            start[1] = move_string[1];
+            start[2] = '\0';
+            end[0] = move_string[2];
+            end[1] = move_string[3];
+            end[2] = '\0';
+        } while (!valid_input(start) || !valid_input(end));
+        move = string_to_move(move_string, board, WHITE);
+        is_valid = is_legal(board, move, WHITE);
+        if (is_valid) {
+            puts("VALID MOVE");
+        } else {
+            puts("NOT VALID!!!");
+        }
+    } while (!is_valid);
+    move_piece(&board, move, WHITE);
     print_bitboard(board.pieces[WHITE][ALL]);
     return 0;
 }
