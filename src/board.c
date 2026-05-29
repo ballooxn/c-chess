@@ -221,20 +221,28 @@ PieceType get_piece(Board board, int sq, Color color) {
     return NO_PIECE;
 }
 
-void move_piece(Board* board, Move move) {
-    Color opp = (move.color == WHITE) ? BLACK : WHITE;
-    PieceType target_piece = get_piece(*board, move.end, opp);
+void place_piece(Board* board, Move move) {
+    set_bit(&board->pieces[move.color][move.piece], move.end);
+    set_bit(&board->pieces[move.color][ALL], move.end);
+    set_bit(&board->occupied, move.end);
+}
 
+void remove_piece(Board* board, Move move) {
     clear_bit(&board->pieces[move.color][move.piece], move.start);
     clear_bit(&board->occupied, move.start);
     clear_bit(&board->pieces[move.color][ALL], move.start);
+}
+
+void move_piece(Board* board, Move move) {
+    Color opp = (move.color == WHITE) ? BLACK : WHITE;
+    PieceType target_piece = get_piece(*board, move.end, opp);
+    
+    remove_piece(board, move);
     if (target_piece != NO_PIECE) {
         clear_bit(&board->pieces[opp][target_piece], move.end);
         clear_bit(&board->pieces[opp][ALL], move.end);
     }
-    set_bit(&board->pieces[move.color][move.piece], move.end);
-    set_bit(&board->pieces[move.color][ALL], move.end);
-    set_bit(&board->occupied, move.end);
+    place_piece(board, move);
 }
 
 //bool in_check(Board* board, Move move) {
@@ -285,7 +293,7 @@ bool valid_move(Board board, Move move) {
     } else if (move.piece == QUEEN || move.piece == BISHOP || move.piece == ROOK) {
         return is_sliding_valid(&board, move);
     } else {
-        puts("YIKES!");
+        puts("Not a valid piece.");
     }
 
     return false;
