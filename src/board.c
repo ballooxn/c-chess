@@ -111,10 +111,10 @@ void init_pawn_attacks(void) {
                 int t_file = FILE_OF(target);
                 if (target >= 0 && target < 64) {
                     if (configs[config].is_attack) {
-                        if (abs(t_rank - rank) == 1 && abs(t_file - file) == 1)
+                        if (DELTA(t_rank, rank) == 1 && DELTA(t_file, file) == 1)
                             set_bit(&attacks, target);
                     } else {
-                        if ((abs(t_rank - rank) == 1 || abs(t_rank - rank) == 2) && t_file == file)
+                        if ((DELTA(t_rank, rank) == 1 || DELTA(t_rank, rank) == 2) && t_file == file)
                             set_bit(&attacks, target);
                     }
                 }
@@ -134,8 +134,8 @@ void init_knight_attacks(void) {
             int t_rank = RANK_OF(target);
             int t_file = FILE_OF(target);
             if (target >= 0 && target < 64 &&
-                ((abs(t_rank - rank) == 2 && abs(t_file - file) == 1) ||
-                (abs(t_rank - rank) == 1 && abs(t_file - file) == 2))) {
+                ((DELTA(t_rank, rank) == 2 && DELTA(t_file, file) == 1) ||
+                (DELTA(t_rank, rank) == 1 && DELTA(t_file, file) == 2))) {
                 set_bit(&attacks, target);
             }
         }
@@ -153,8 +153,8 @@ void init_king_attacks(void) {
             int t_rank = RANK_OF(target);
             int t_file = FILE_OF(target);
             if (target >= 0 && target < 64 && target != sq &&
-                ((abs(t_rank - rank) == 1 && abs(t_file - file) == 1) ||
-                (abs(t_rank - rank) == 0 || abs(t_file - file) == 0))) {
+                ((DELTA(t_rank, rank) == 1 && DELTA(t_file, file) == 1) ||
+                (DELTA(t_rank, rank) == 0 || DELTA(t_file, file) == 0))) {
                 set_bit(&attacks, target);
                 // do castling stuff later
             }
@@ -239,38 +239,46 @@ void move_piece(Board* board, Move move) {
     // will make soon
 //}
 
+bool is_sliding_valid(Board* board, Move move, bool pawn_double_push) {
+    if (line[move.start][move.end] == 0) return false;
+    if (between[move.start][move.end] & board->occupied) return false; // piece in way
+
+    if (pawn_double_push) return true;
+
+    int delta_rank = DELTA(RANK_OF(move.start), RANK_OF(move.end));
+    int delta_file = DELTA(FILE_OF(move.start), FILE_OF(move.end));
+    if (move.piece == ROOK && !(delta_rank == 0 || delta_file == 0)) return false; // rook cant diagonal
+    if (move.piece == BISHOP && delta_rank != delta_file) return false; // bishop only diagonal
+
+    return true;
+}
+
+bool is_pawn_valid(Board* board, Move move) {
+    switch (move.color) {
+        case WHITE: 
+            if (get_bit(white_pawn_attacks[move.start], move.end) && get_bit(board->pieces[BLACK][ALL], move.end)) return true;
+            if (get_bit(white_pawn_pushes[move.start], move.end) && !get_bit(board->occupied, move.end)) return true;
+            break;
+        case BLACK:
+            if (get_bit(black_pawn_attacks[move.start], move.end) && get_bit(board->pieces[WHITE][ALL], move.end)) return true;
+            if (get_bit(black_pawn_pushes[move.start], move.end) && !get_bit(board->occupied, move.end)) return true;
+            break;
+        default:
+            return false;
+    }
+    return false;
+}
+
 bool valid_move(Board board, Move move) {
     bool pawn_double_push = (move.piece == PAWN && abs(RANK_OF(move.start) - RANK_OF(move.end)) == 2);
     if (move.piece == PAWN && !pawn_double_push) {
-        switch (move.color) {
-            case WHITE: 
-                if (get_bit(white_pawn_attacks[move.start], move.end) && get_bit(board.pieces[BLACK][ALL], move.end)) return true;
-                if (get_bit(white_pawn_pushes[move.start], move.end) && !get_bit(board.occupied, move.end)) return true;
-                break;
-            case BLACK:
-                if (get_bit(black_pawn_attacks[move.start], move.end) && get_bit(board.pieces[WHITE][ALL], move.end)) return true;
-                if (get_bit(black_pawn_pushes[move.start], move.end) && !get_bit(board.occupied, move.end)) return true;
-                break;
-            default:
-                return false;
-        }
+        return is_pawn_valid(&board, move);
     } else if (move.piece == KNIGHT && get_bit(knight_attacks[move.start], move.end)) {
         return true;
     } else if (move.piece == KING && get_bit(king_attacks[move.start], move.end)) {
         return true;
     } else if (move.piece == QUEEN || move.piece == BISHOP || move.piece == ROOK || pawn_double_push) {
-        // handle sliding piece
-        if (line[move.start][move.end] == 0) return false;
-        if (between[move.start][move.end] & board.occupied) return false; // piece in way
-
-        if (pawn_double_push) return true;
-
-        int delta_rank = abs(RANK_OF(move.start) - RANK_OF(move.end));
-        int delta_file = abs(FILE_OF(move.start) - FILE_OF(move.end));
-        if (move.piece == ROOK && !(delta_rank == 0 || delta_file == 0)) return false; // rook cant diagonal
-        if (move.piece == BISHOP && delta_rank != delta_file) return false; // bishop only diagonal
-
-        return true;
+        return is_sliding_valid(&board, move, pawn_double_push);
     } else {
         puts("YIKES!");
     }
@@ -280,6 +288,7 @@ bool valid_move(Board board, Move move) {
 
 bool is_legal(Board board, Move move) {
     if (get_bit(board.pieces[move.color][ALL], move.end)) return false;
+    if (move.start == move.end) return false;
 
     if (move.piece == NO_PIECE) return false;
 

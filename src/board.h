@@ -5,8 +5,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define RANK_OF(pos)       ((pos) / 8)
-#define FILE_OF(pos)       ((pos) % 8)
+#define RANK_OF(pos)            ((pos) / 8)
+#define FILE_OF(pos)            ((pos) % 8)
+#define DELTA(new, old)    (abs((new) - (old)))
 
 typedef enum {WHITE, BLACK, COLOR_NUM} Color;
 typedef enum {PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING, ALL, PIECE_NUM, NO_PIECE = -1} PieceType;
