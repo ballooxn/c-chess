@@ -5,9 +5,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
-#include <ctype.h>
-
-#define MOVE_PIECE(bitboard, square)  ((bitboard) |= (1ULL << (square)))
 
 uint64_t knight_attacks[64];
 const int knight_offsets[8] = {
@@ -102,16 +99,16 @@ void init_pawn_attacks(void) {
     };
 
     for (int sq = 0; sq < 64; sq++) {
-        int rank = sq / 8;
-        int file = sq % 8;
+        int rank = RANK_OF(sq);
+        int file = FILE_OF(sq);
 
         for (int config = 0; config < 4; config++) {
             uint64_t attacks = 0;
 
             for (int i = 0; i < 2; i++) {
                 int target = sq + configs[config].offsets[i];
-                int t_rank = target / 8;
-                int t_file = target % 8;
+                int t_rank = RANK_OF(target);
+                int t_file = FILE_OF(target);
                 if (target >= 0 && target < 64) {
                     if (configs[config].is_attack) {
                         if (abs(t_rank - rank) == 1 && abs(t_file - file) == 1)
@@ -130,12 +127,12 @@ void init_pawn_attacks(void) {
 void init_knight_attacks(void) {
     for (int sq = 0; sq < 64; sq++) {
         uint64_t attacks = 0;
-        int rank = sq / 8;
-        int file = sq % 8;
+        int rank = RANK_OF(sq);
+        int file = FILE_OF(sq);
         for (int i = 0; i < 8; i++) {
             int target = sq + knight_offsets[i];
-            int t_rank = target / 8;
-            int t_file = target % 8;
+            int t_rank = RANK_OF(target);
+            int t_file = FILE_OF(target);
             if (target >= 0 && target < 64 &&
                 ((abs(t_rank - rank) == 2 && abs(t_file - file) == 1) ||
                 (abs(t_rank - rank) == 1 && abs(t_file - file) == 2))) {
@@ -149,12 +146,12 @@ void init_knight_attacks(void) {
 void init_king_attacks(void) {
     for (int sq = 0; sq < 64; sq++) {
         uint64_t attacks = 0;
-        int rank = sq / 8;
-        int file = sq % 8;
+        int rank = RANK_OF(sq);
+        int file = FILE_OF(sq);
         for (int i = 0; i < 8; i++) {
             int target = sq + king_offsets[i];
-            int t_rank = target / 8;
-            int t_file = target % 8;
+            int t_rank = RANK_OF(target);
+            int t_file = FILE_OF(target);
             if (target >= 0 && target < 64 && target != sq &&
                 ((abs(t_rank - rank) == 1 && abs(t_file - file) == 1) ||
                 (abs(t_rank - rank) == 0 || abs(t_file - file) == 0))) {
@@ -172,8 +169,8 @@ void init_sliding_tables(void) {
     // N,S,E,W,NE,NW,SE,SW
 
     for (int sq1 = 0; sq1 < 64; sq1++) {
-        int rank1 = sq1 / 8; 
-        int file1 = sq1 % 8;
+        int rank1 = RANK_OF(sq1); 
+        int file1 = FILE_OF(sq1);
 
         for (int dir = 0; dir < 8; dir++) {
             int offset_rank = dirs_rank[dir];
@@ -222,26 +219,30 @@ PieceType get_piece(Board board, int sq, Color color) {
     return NO_PIECE;
 }
 
-void move_piece(Board* board, Move move, Color color) {
-    PieceType piece = get_piece(*board, move.start, color);
-    Color opp = (color == WHITE) ? BLACK : WHITE;
+void move_piece(Board* board, Move move) {
+    Color opp = (move.color == WHITE) ? BLACK : WHITE;
     PieceType target_piece = get_piece(*board, move.end, opp);
-    clear_bit(&board->pieces[color][piece], move.start);
+
+    clear_bit(&board->pieces[move.color][move.piece], move.start);
     clear_bit(&board->occupied, move.start);
-    clear_bit(&board->pieces[color][ALL], move.start);
+    clear_bit(&board->pieces[move.color][ALL], move.start);
     if (target_piece != NO_PIECE) {
         clear_bit(&board->pieces[opp][target_piece], move.end);
         clear_bit(&board->pieces[opp][ALL], move.end);
     }
-    set_bit(&board->pieces[color][piece], move.end);
-    set_bit(&board->pieces[color][ALL], move.end);
+    set_bit(&board->pieces[move.color][move.piece], move.end);
+    set_bit(&board->pieces[move.color][ALL], move.end);
     set_bit(&board->occupied, move.end);
 }
 
-bool valid_move(Board board, PieceType piece, Move move, Color color) {
-    bool pawn_double_push = (piece == PAWN && abs((move.start / 8) - (move.end / 8)) == 2);
-    if (piece == PAWN && !pawn_double_push) {
-        switch (color) {
+//bool in_check(Board* board, Move move) {
+    // will make soon
+//}
+
+bool valid_move(Board board, Move move) {
+    bool pawn_double_push = (move.piece == PAWN && abs(RANK_OF(move.start) - RANK_OF(move.end)) == 2);
+    if (move.piece == PAWN && !pawn_double_push) {
+        switch (move.color) {
             case WHITE: 
                 if (get_bit(white_pawn_attacks[move.start], move.end) && get_bit(board.pieces[BLACK][ALL], move.end)) return true;
                 if (get_bit(white_pawn_pushes[move.start], move.end) && !get_bit(board.occupied, move.end)) return true;
@@ -253,21 +254,21 @@ bool valid_move(Board board, PieceType piece, Move move, Color color) {
             default:
                 return false;
         }
-    } else if (piece == KNIGHT && get_bit(knight_attacks[move.start], move.end)) {
+    } else if (move.piece == KNIGHT && get_bit(knight_attacks[move.start], move.end)) {
         return true;
-    } else if (piece == KING && get_bit(king_attacks[move.start], move.end)) {
+    } else if (move.piece == KING && get_bit(king_attacks[move.start], move.end)) {
         return true;
-    } else if (piece == QUEEN || piece == BISHOP || piece == ROOK || pawn_double_push) {
+    } else if (move.piece == QUEEN || move.piece == BISHOP || move.piece == ROOK || pawn_double_push) {
         // handle sliding piece
         if (line[move.start][move.end] == 0) return false;
-        if (between[move.start][move.end] & board.occupied) return false;
+        if (between[move.start][move.end] & board.occupied) return false; // piece in way
 
         if (pawn_double_push) return true;
 
-        int delta_rank = abs((move.start / 8) - (move.end / 8));
-        int delta_file = abs((move.start % 8) - (move.end % 8));
-        if (piece == ROOK && !(delta_rank == 0 || delta_file == 0)) return false;
-        if (piece == BISHOP && delta_rank != delta_file) return false;
+        int delta_rank = abs(RANK_OF(move.start) - RANK_OF(move.end));
+        int delta_file = abs(FILE_OF(move.start) - FILE_OF(move.end));
+        if (move.piece == ROOK && !(delta_rank == 0 || delta_file == 0)) return false; // rook cant diagonal
+        if (move.piece == BISHOP && delta_rank != delta_file) return false; // bishop only diagonal
 
         return true;
     } else {
@@ -277,13 +278,12 @@ bool valid_move(Board board, PieceType piece, Move move, Color color) {
     return false;
 }
 
-bool is_legal(Board board, Move move, Color color) {
-    if (get_bit(board.pieces[color][ALL], move.end)) return false;
-    PieceType piece = get_piece(board, move.start, color);
+bool is_legal(Board board, Move move) {
+    if (get_bit(board.pieces[move.color][ALL], move.end)) return false;
 
-    if (piece == NO_PIECE) return false;
+    if (move.piece == NO_PIECE) return false;
 
-    if (!valid_move(board, piece, move, color)) return false;
+    if (!valid_move(board, move)) return false;
 
     return true;
 }
@@ -317,7 +317,7 @@ void print_board(Board* board) {
         for (PieceType pt = PAWN; pt <= KING; pt++) {
             for (int i = 0; i < 64; i++) {
                 if (get_bit(board->pieces[color][pt], i)) {
-                    display_board[i / 8][i % 8] = piece_symbols[color][pt];
+                    display_board[RANK_OF(i)][FILE_OF(i)] = piece_symbols[color][pt];
                 }
             }
         }

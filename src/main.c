@@ -57,7 +57,7 @@ static Move string_to_move(char* string, Board board, Color color) {
     int start = pos_to_int(string[1], string[0]);
     int end = pos_to_int(string[3], string[2]);
     char piece = get_piece(board, start, color);
-    Move move = {.start = start, .end = end, .piece = piece};
+    Move move = {.start = start, .end = end, .piece = piece, .color = color};
     return move;
 }
 
@@ -92,14 +92,14 @@ int main(void) {
                 end[2] = '\0';
             } while (!valid_input(start) || !valid_input(end));
             move = string_to_move(move_string, board, player);
-            is_valid = is_legal(board, move, player);
+            is_valid = is_legal(board, move);
             if (is_valid) {
                 puts("VALID MOVE");
             } else {
                 puts("NOT VALID!!!");
             }
         } while (!is_valid);
-        move_piece(&board, move, player);
+        move_piece(&board, move);
     } while (!is_winner);
     print_board(&board);
     return 0;
