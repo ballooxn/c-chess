@@ -61,6 +61,23 @@ static Move string_to_move(char* string, Board board, Color color) {
     return move;
 }
 
+void get_player_move(char* buffer, size_t size) {
+    char start[3] = "";
+    char end[3] = "";
+    do {
+        player_input(buffer, size);
+        // implement false if no piece on start square
+        if (strlen(buffer) != 4) continue;
+
+        start[0] = buffer[0];
+        start[1] = buffer[1];
+        start[2] = '\0';
+        end[0] = buffer[2];
+        end[1] = buffer[3];
+        end[2] = '\0';
+    } while (!valid_input(start) || !valid_input(end));
+}
+
 int main(void) {
     Board board = init_board();
     init_attacks();
@@ -75,23 +92,10 @@ int main(void) {
         Move move;
         bool is_valid = false;
         do {
-            char move_string[5];
-            char start[3] = "";
-            char end[3] = "";
             // change to do while loop
-            do {
-                player_input(move_string, sizeof(move_string));
-                // implement false if no piece on start square
-                if (strlen(move_string) != 4) continue;
-
-                start[0] = move_string[0];
-                start[1] = move_string[1];
-                start[2] = '\0';
-                end[0] = move_string[2];
-                end[1] = move_string[3];
-                end[2] = '\0';
-            } while (!valid_input(start) || !valid_input(end));
-            move = string_to_move(move_string, board, player);
+            char buffer[5] = "";
+            get_player_move(buffer, sizeof(buffer));
+            move = string_to_move(buffer, board, player);
             is_valid = is_legal(board, move);
             if (is_valid) {
                 puts("VALID MOVE");
