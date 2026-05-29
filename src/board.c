@@ -221,33 +221,39 @@ PieceType get_piece(Board board, int sq, Color color) {
     return NO_PIECE;
 }
 
-void place_piece(Board* board, Move move) {
-    set_bit(&board->pieces[move.color][move.piece], move.end);
-    set_bit(&board->pieces[move.color][ALL], move.end);
-    set_bit(&board->occupied, move.end);
+void place_piece(Board* board, int pos, PieceType pt, Color color) {
+    set_bit(&board->pieces[color][pt], pos);
+    set_bit(&board->pieces[color][ALL], pos);
+    set_bit(&board->occupied, pos);
 }
 
-void remove_piece(Board* board, Move move) {
-    clear_bit(&board->pieces[move.color][move.piece], move.start);
-    clear_bit(&board->occupied, move.start);
-    clear_bit(&board->pieces[move.color][ALL], move.start);
+void remove_piece(Board* board, int pos, PieceType pt, Color color) {
+    clear_bit(&board->pieces[color][pt], pos);
+    clear_bit(&board->occupied, pos);
+    clear_bit(&board->pieces[color][ALL], pos);
 }
 
 void move_piece(Board* board, Move move) {
     Color opp = (move.color == WHITE) ? BLACK : WHITE;
     PieceType target_piece = get_piece(*board, move.end, opp);
     
-    remove_piece(board, move);
+    remove_piece(board, move.start, move.piece, move.color);
     if (target_piece != NO_PIECE) {
         clear_bit(&board->pieces[opp][target_piece], move.end);
         clear_bit(&board->pieces[opp][ALL], move.end);
     }
-    place_piece(board, move);
+    place_piece(board, move.end, move.piece, move.color);
 }
 
-//bool in_check(Board* board, Move move) {
-    // will make soon
-//}
+void reverse_simulated_move(Board* board, Move move, PieceType target_piece) {
+    Color opp = (move.color == WHITE) ? BLACK : WHITE;
+
+    remove_piece(board, move.end, move.piece, move.color);
+    if (target_piece != NO_PIECE) {
+        place_piece(board, move.end, target_piece, opp);
+    }
+    place_piece(board, move.start, move.piece, move.color);
+}
 
 bool is_sliding_valid(Board* board, Move move) {
     if (line[move.start][move.end] == 0) return false;
@@ -299,6 +305,24 @@ bool valid_move(Board board, Move move) {
     return false;
 }
 
+bool in_check(Board* board, Move move) {
+    int king_sq = __builtin_ctzll(board->pieces[move.color][KING]);
+    Color opp = (move.color == WHITE) ? BLACK : WHITE;
+    uint64_t bb = board->pieces[opp][ALL];
+    while (bb) {
+        int sq = __builtin_ctzll(bb);
+        bb &= bb - 1;
+        printf("%d\n", sq);
+        PieceType piece_type = get_piece(*board, sq, opp);
+        Move temp_move = {.start = sq, .end = king_sq, .piece = piece_type, .color = opp};
+
+        if (piece_type == KING || piece_type == NO_PIECE) continue;
+
+        if (valid_move(*board, temp_move)) return true;
+    }
+    return false;
+}
+
 bool is_legal(Board board, Move move) {
     if (get_bit(board.pieces[move.color][ALL], move.end)) return false;
     if (move.start == move.end) return false;
@@ -306,6 +330,18 @@ bool is_legal(Board board, Move move) {
     if (move.piece == NO_PIECE) return false;
 
     if (!valid_move(board, move)) return false;
+
+    Color opp = (move.color == WHITE) ? BLACK : WHITE;
+    PieceType target_piece = get_piece(board, move.end, opp);
+
+    move_piece(&board, move);
+    bool is_in_check = in_check(&board, move);
+    reverse_simulated_move(&board, move, target_piece);
+
+    if (is_in_check) {
+        puts("Move would put the king in check. Invalid");
+        return false;
+    }
 
     return true;
 }
