@@ -104,7 +104,11 @@ int main(void) {
             }
         } while (!is_valid);
         move_piece(&board, move);
+        Color opp = (player == WHITE) ? BLACK : WHITE;
+        if (in_checkmate(&board, opp)) break;
     } while (!is_winner);
+    puts("Checkmate!!!!");
+    printf("The winner is: %d\n", player);
     print_board(&board);
     return 0;
 }
