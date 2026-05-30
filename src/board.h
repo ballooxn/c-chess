@@ -12,6 +12,8 @@
 typedef enum {WHITE, BLACK, COLOR_NUM} Color;
 typedef enum {PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING, ALL, PIECE_NUM, NO_PIECE = -1} PieceType;
 
+#define OPP_COLOR(color)    (((color) == WHITE) ? BLACK : WHITE)
+
 static inline void set_bit(uint64_t* bb, int sq) {
     *bb |= (1ULL << sq);
 }

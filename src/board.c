@@ -263,7 +263,7 @@ void remove_piece(Board *board, int pos, PieceType pt, Color color)
 
 void move_piece(Board *board, Move move)
 {
-    Color opp = (move.color == WHITE) ? BLACK : WHITE;
+    Color opp = OPP_COLOR(move.color);
     PieceType target_piece = get_piece(*board, move.end, opp);
 
     remove_piece(board, move.start, move.piece, move.color);
@@ -277,7 +277,7 @@ void move_piece(Board *board, Move move)
 
 void reverse_simulated_move(Board *board, Move move, PieceType target_piece)
 {
-    Color opp = (move.color == WHITE) ? BLACK : WHITE;
+    Color opp = OPP_COLOR(move.color);
 
     remove_piece(board, move.end, move.piece, move.color);
     if (target_piece != NO_PIECE)
@@ -357,7 +357,7 @@ bool valid_move(Board board, Move move) {
 bool in_check(Board *board, Color color)
 {
     int king_sq = __builtin_ctzll(board->pieces[color][KING]);
-    Color opp = (color == WHITE) ? BLACK : WHITE;
+    Color opp = OPP_COLOR(color);
     uint64_t bb = board->pieces[opp][ALL];
     while (bb)
     {
@@ -375,6 +375,8 @@ bool in_check(Board *board, Color color)
     return false;
 }
 
+// stalemate quickly, then refactor this crap
+
 bool is_legal(Board board, Move move)
 {
     if (get_bit(board.pieces[move.color][ALL], move.end))
@@ -388,7 +390,7 @@ bool is_legal(Board board, Move move)
     if (!valid_move(board, move))
         return false;
 
-    Color opp = (move.color == WHITE) ? BLACK : WHITE;
+    Color opp = OPP_COLOR(move.color);
     PieceType target_piece = get_piece(board, move.end, opp);
 
     move_piece(&board, move);
@@ -403,109 +405,114 @@ bool is_legal(Board board, Move move)
     return true;
 }
 
+static uint64_t * const pawn_pushes[2] = {white_pawn_pushes, black_pawn_pushes};
+static uint64_t * const pawn_attacks[2] = {white_pawn_attacks, black_pawn_attacks};
+
+int generate_pawn_moves(Board* board, Color color, int sq, int* possible_end_sqs, PieceType pt) {
+    (void)pt;
+    Color opp = OPP_COLOR(color);
+    int count = 0;
+    
+    uint64_t push_bb = pawn_pushes[color][sq];
+    int inter_sq = (color == WHITE) ? sq + 8 : sq - 8; // for double push
+    while (push_bb) {
+        int end_sq = __builtin_ctzll(push_bb);
+        push_bb &= push_bb - 1;
+        if (get_bit(board->pieces[color][ALL], end_sq)) continue;
+        if (get_bit(board->pieces[opp][ALL], end_sq)) continue;
+        if (DELTA(RANK_OF(end_sq), RANK_OF(sq)) == 2 && get_bit(board->occupied, inter_sq)) continue;
+        possible_end_sqs[count] = end_sq;
+        count += 1;
+    }
+    uint64_t diag_bb = pawn_attacks[color][sq];
+    while (diag_bb) {
+        int end_sq = __builtin_ctzll(diag_bb);
+        diag_bb &= diag_bb - 1;
+        if (get_bit(board->pieces[color][ALL], end_sq)) continue;
+        if (get_bit(board->pieces[opp][ALL], end_sq)) {
+            possible_end_sqs[count] = end_sq;
+            count += 1;
+        }
+    }
+
+    return count;
+}
+
+int generate_knight_king_moves(Board* board, Color color, int sq, int* possible_end_sqs, PieceType pt) {
+    int count = 0;
+    
+    uint64_t attack_bb = (pt == KING) ? king_attacks[sq] : knight_attacks[sq];
+    while (attack_bb) {
+        int end_sq = __builtin_ctzll(attack_bb);
+        attack_bb &= attack_bb - 1;
+        if (get_bit(board->pieces[color][ALL], end_sq)) continue;
+        possible_end_sqs[count] = end_sq;
+        count += 1;
+    }
+
+    return count;
+}
+
 int rook_dirs[4]   = {8, -8,  1, -1};
 int bishop_dirs[4] = {9,  7, -7, -9};
 int queen_dirs[8]  = {8, -8,  1, -1,  9,  7, -7, -9};
 
-bool has_legal_moves(Board *board, Color color) {
-    Color opp = (color == WHITE) ? BLACK : WHITE;
-    uint64_t bb = board->pieces[color][ALL];
-    while (bb)
-    {
-        int sq = __builtin_ctzll(bb);
-        bb &= bb - 1;
-        PieceType piece_type = get_piece(*board, sq, color);
-        if (piece_type == NO_PIECE)
-            continue;
+static const int* dir_tables[6] = {NULL, NULL, bishop_dirs, rook_dirs, queen_dirs, NULL};
+static const int dir_counts[6] = {0,0,4,4,8,0};
 
-        // Get all possible end squares via the attack
-        int possible_end_sqs[64];
-        int count = 0;
+int generate_sliding_moves(Board* board, Color color, int sq, int* possible_end_sqs, PieceType pt) {
+    Color opp = OPP_COLOR(color);
+    int count = 0;
+    
+    const int* dirs = dir_tables[pt];
+    int dir_count = dir_counts[pt];
 
-        if (piece_type == PAWN || piece_type == KNIGHT || piece_type == KING) {
-            uint64_t (*attack_array) = NULL;
-            uint64_t (*pawn_diag_attack_array) = NULL;
-
-            switch (piece_type) {
-                case PAWN:
-                    switch (color) {
-                        case WHITE:
-                            attack_array = white_pawn_pushes;
-                            pawn_diag_attack_array = white_pawn_attacks;
-                            break;
-                        case BLACK:
-                            attack_array = black_pawn_pushes;
-                            pawn_diag_attack_array = black_pawn_attacks;
-                            break;
-                        default: break;
-                    }
-                    break;
-                case KNIGHT:   attack_array = knight_attacks; break;
-                case KING: attack_array = king_attacks; break;
-                default: continue;
-            }
-            if (!attack_array) {
-                puts("No attack array.");
-                return false;
-            }
-
-            uint64_t attack_bb = attack_array[sq];
-
-            while (attack_bb) {
-                int end_sq = __builtin_ctzll(attack_bb);
-                attack_bb &= attack_bb - 1;
-                if (get_bit(board->pieces[color][ALL], end_sq)) continue;
-                if (piece_type == PAWN && get_bit(board->pieces[opp][ALL], end_sq)) continue;
-                possible_end_sqs[count] = end_sq;
+    for (int dir = 0; dir < dir_count; dir++) {
+        int new_sq = sq;
+        while (1) {
+            new_sq += dirs[dir];
+            if (new_sq < 0 || new_sq > 63) break;
+            if (line[sq][new_sq] == 0) break;
+            if (get_bit(board->pieces[color][ALL], new_sq)) break;
+            if (get_bit(board->pieces[opp][ALL], new_sq)) {
+                possible_end_sqs[count] = new_sq;
+                count += 1;
+                break;
+            } else {
+                possible_end_sqs[count] = new_sq;
                 count += 1;
             }
-            if (pawn_diag_attack_array) {
-                attack_bb = pawn_diag_attack_array[sq];
-
-                while (attack_bb) {
-                    int end_sq = __builtin_ctzll(attack_bb);
-                    attack_bb &= attack_bb - 1;
-                    if (get_bit(board->pieces[color][ALL], end_sq)) continue;
-                    if (get_bit(board->pieces[opp][ALL], end_sq)) {
-                        possible_end_sqs[count] = end_sq;
-                        count += 1;
-                    }
-                }
-            }
-
-        } else if (piece_type == BISHOP || piece_type == ROOK || piece_type == QUEEN) {
-            int (*dir_array);
-            int dir_count;
-
-            switch (piece_type) {
-                case QUEEN:  dir_array = queen_dirs; dir_count = 8; break;
-                case ROOK:   dir_array = rook_dirs; dir_count = 4; break;
-                case BISHOP: dir_array = bishop_dirs; dir_count = 4; break;
-                default: continue;
-            }
-
-            for (int dir = 0; dir < dir_count; dir++) {
-                int new_sq = sq;
-                while (1) {
-                    new_sq += dir_array[dir];
-                    if (new_sq < 0 || new_sq > 63) break;
-                    if (line[sq][new_sq] == 0) break;
-                    if (get_bit(board->pieces[color][ALL], new_sq)) break;
-                    if (get_bit(board->pieces[opp][ALL], new_sq)) {
-                        possible_end_sqs[count] = new_sq;
-                        count += 1;
-                        break;
-                    } else {
-                        possible_end_sqs[count] = new_sq;
-                        count += 1;
-                    }
-                }
-            }
         }
+    }
 
-        for (int i = 0; i < count; i++) {
-            Move temp_move = {.start = sq, .end = possible_end_sqs[i], .piece = piece_type, .color = color};
-            if (is_legal(*board, temp_move)) return true;
+    return count;
+}
+
+typedef int (*MoveGenFunc)(Board*, Color, int, int*, PieceType);
+MoveGenFunc generators[6] = {
+    generate_pawn_moves,
+    generate_knight_king_moves,
+    generate_sliding_moves,
+    generate_sliding_moves,
+    generate_sliding_moves,
+    generate_knight_king_moves  
+};
+
+bool has_legal_moves(Board *board, Color color) {
+    for (PieceType pt = PAWN; pt <= KING; pt++) {
+        uint64_t bb = board->pieces[color][pt];
+        if (!bb) continue;
+
+        while (bb) {
+            int sq = __builtin_ctzll(bb);
+            bb &= bb - 1;
+
+            int possible_end_sqs[64];
+            int count = generators[pt](board, color, sq, possible_end_sqs, pt);
+            for (int i = 0; i < count; i++) {
+                Move temp_move = {.start = sq, .end = possible_end_sqs[i], .piece = pt, .color = color};
+                if (is_legal(*board, temp_move)) return true;
+            }
         }
     }
     return false;
