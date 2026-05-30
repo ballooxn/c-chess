@@ -1,7 +1,6 @@
 #ifndef BOARD_H
 #define BOARD_H
 
-#include "main.h"
 #include <stdint.h>
 #include <stdbool.h>
 

@@ -1,33 +1,47 @@
-CC          = gcc
-CFLAGS      = -Wall -Wextra -Wpedantic -std=c17 -O2 -march=native
+CC = gcc
+CFLAGS = -Wall -Wextra -Wpedantic -std=c17 -O2 -march=native
 DEBUG_FLAGS = -g -DDEBUG -fsanitize=address -fsanitize=undefined
 
-SRC_DIR     = src
-BIN_DIR     = bin
-TARGET      = $(BIN_DIR)/chess-engine
+SRC_DIR = src
+BIN_DIR = bin
+TEST_DIR = tests
+OBJ_DIR = $(BIN_DIR)/obj
 
-SOURCES     = $(wildcard $(SRC_DIR)/*.c)
-OBJECTS     = $(SOURCES:$(SRC_DIR)/%.c=$(BIN_DIR)/%.o)
+ENGINE = $(BIN_DIR)/chess-engine
+TESTER = $(BIN_DIR)/tests
 
-all: $(TARGET)
+ENGINE_SRCS = $(wildcard $(SRC_DIR)/*.c)
+TEST_SRCS = $(wildcard $(TEST_DIR)/*.c) $(filter-out $(SRC_DIR)/main.c, $(ENGINE_SRCS))
 
-$(TARGET): $(OBJECTS)
-	@mkdir -p $(BIN_DIR)
+ENGINE_OBJS = $(ENGINE_SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/$(SRC_DIR)/%.o)
+TEST_OBJS = $(TEST_SRCS:%.c=$(OBJ_DIR)/%.o)
+
+.PHONY: all run test clean
+
+all: $(ENGINE)
+
+run: $(ENGINE)
+	$(ENGINE)
+
+test: $(TESTER)
+	$(TESTER)
+
+$(ENGINE): $(ENGINE_OBJS)
+	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(BIN_DIR)/%.o: $(SRC_DIR)/%.c
-	@mkdir -p $(BIN_DIR)
+$(TESTER): $(TEST_OBJS)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $^ -o $@
+
+$(OBJ_DIR)/$(SRC_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -I$(SRC_DIR) -c $< -o $@
 
-debug: CFLAGS = -Wall -Wextra -Wpedantic -std=c17 -g -DDEBUG -fsanitize=address -fsanitize=undefined
-debug: clean $(TARGET)
-	@echo "Debug build complete with sanitizers"
-
-run: $(TARGET)
-	$(TARGET)
+$(OBJ_DIR)/$(TEST_DIR)/%.o: $(TEST_DIR)/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -I$(SRC_DIR) -I$(TEST_DIR) -c $< -o $@
 
 clean:
 	rm -rf $(BIN_DIR)
 	@echo "Cleaned build files"
-
-.PHONY: all debug run clean

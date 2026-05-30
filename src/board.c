@@ -342,8 +342,6 @@ bool in_check(Board *board, Color color)
             continue;
 
         if (valid_move(*board, temp_move)) {
-            printf("Checker: square %d (rank %d, file %c), piece %d\n",
-                    sq, RANK_OF(sq), 'a' + FILE_OF(sq), piece_type);
             return true;
         }
     }
@@ -351,9 +349,6 @@ bool in_check(Board *board, Color color)
 }
 
 bool is_legal(Board board, Move move) {
-    printf("move: %d -> %d, piece: %d\n", move.start, move.end, move.piece);
-    printf("friendly dest: %d\n", get_bit(board.pieces[move.color][ALL], move.end));
-    printf("valid_move: %d\n", valid_move(board, move));  
 
     if (get_bit(board.pieces[move.color][ALL], move.end))
         return false;
@@ -371,7 +366,6 @@ bool is_legal(Board board, Move move) {
 
     move_piece(&board, move);
     bool is_in_check = in_check(&board, move.color);
-    printf("in_check after move: %d\n", is_in_check);
     reverse_simulated_move(&board, move, target_piece);
 
     if (is_in_check)
