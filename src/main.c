@@ -82,7 +82,7 @@ int main(void) {
     Board board = init_board();
     init_attacks();
 
-    bool is_winner = false;
+    Color winner = NO_WINNER;
     Color player = BLACK;
 
     do {
@@ -105,10 +105,22 @@ int main(void) {
         } while (!is_valid);
         move_piece(&board, move);
         Color opp = (player == WHITE) ? BLACK : WHITE;
-        if (in_checkmate(&board, opp)) break;
-    } while (!is_winner);
-    puts("Checkmate!!!!");
-    printf("The winner is: %d\n", player);
+        if (in_checkmate(&board, opp)) {
+            winner = player;
+        } else if (in_stalemate(&board, opp)) {
+            winner = STALEMATE;
+        }
+    } while (winner == NO_WINNER);
+    if (winner == STALEMATE) {
+        puts("Stalemate! Nobody wins!");
+    } else {
+        printf("Checkmate! the winner is: ");
+        switch (winner) {
+            case WHITE: printf("White.\n"); break;
+            case BLACK: printf("Black.\n"); break;
+            default: break;
+        }
+    }
     print_board(&board);
     return 0;
 }

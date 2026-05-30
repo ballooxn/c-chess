@@ -9,7 +9,7 @@
 #define FILE_OF(pos)            ((pos) % 8)
 #define DELTA(new, old)    (abs((new) - (old)))
 
-typedef enum {WHITE, BLACK, COLOR_NUM} Color;
+typedef enum {WHITE, BLACK, COLOR_NUM, STALEMATE = -1, NO_WINNER = -2} Color;
 typedef enum {PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING, ALL, PIECE_NUM, NO_PIECE = -1} PieceType;
 
 #define OPP_COLOR(color)    (((color) == WHITE) ? BLACK : WHITE)
@@ -52,6 +52,7 @@ PieceType get_piece(Board board, int sq, Color color);
 void move_piece(Board* board, Move move);
 bool is_legal(Board board, Move move);
 bool in_checkmate(Board *board, Color color);
+bool in_stalemate(Board *board, Color color);
 void print_bitboard(uint64_t board);
 void print_board(Board* board);
 

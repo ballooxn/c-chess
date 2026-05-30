@@ -34,22 +34,6 @@ uint64_t white_pawn_pushes[SQUARES];
 uint64_t black_pawn_pushes[SQUARES];
 uint64_t white_pawn_attacks[SQUARES];
 uint64_t black_pawn_attacks[SQUARES];
-const int white_pawn_attack_offsets[2] = {
-    9, // 1, 1
-    7, // 1,-1
-};
-const int black_pawn_attack_offsets[2] = {
-    -7, // -1,1
-    -9, // -1, -1
-};
-const int white_pawn_push_offsets[2] = {
-    8,  // 1, 0
-    16, // 2, 0
-};
-const int black_pawn_push_offsets[2] = {
-    -8,  // -1,0
-    -16, //-2,0
-};
 
 uint64_t line[SQUARES][SQUARES];
 uint64_t between[SQUARES][SQUARES]; // First is the start_pos, second is the end_pos
@@ -86,52 +70,38 @@ Board init_board(void)
     return board;
 }
 
-typedef struct
-{
-    uint64_t *table;
-    const int *offsets;
-    bool is_attack;
-} PawnInit;
-
-void init_pawn_attacks(void)
-{
-
-    PawnInit configs[4] = {
-        {white_pawn_pushes, white_pawn_push_offsets, false},
-        {black_pawn_pushes, black_pawn_push_offsets, false},
-        {white_pawn_attacks, white_pawn_attack_offsets, true},
-        {black_pawn_attacks, black_pawn_attack_offsets, true}};
-
-    for (int sq = 0; sq < SQUARES; sq++)
-    {
+void init_pawn_attacks(void) {
+    for (int sq = 0; sq < SQUARES; sq++) {
         int rank = RANK_OF(sq);
         int file = FILE_OF(sq);
 
-        for (int config = 0; config < 4; config++)
-        {
-            uint64_t attacks = 0;
-
-            for (int i = 0; i < 2; i++)
-            {
-                int target = sq + configs[config].offsets[i];
-                int t_rank = RANK_OF(target);
-                int t_file = FILE_OF(target);
-                if (target >= 0 && target < SQUARES)
-                {
-                    if (configs[config].is_attack)
-                    {
-                        if (DELTA(t_rank, rank) == 1 && DELTA(t_file, file) == 1)
-                            set_bit(&attacks, target);
-                    }
-                    else
-                    {
-                        if ((DELTA(t_rank, rank) == 1 || DELTA(t_rank, rank) == 2) && t_file == file)
-                            set_bit(&attacks, target);
-                    }
-                }
-            }
-            configs[config].table[sq] = attacks;
+        uint64_t white_attacks = 0;
+        if (rank < 7) {
+            if (file > 0) set_bit(&white_attacks, sq+7);
+            if (file < 7) set_bit(&white_attacks, sq+9);
         }
+        white_pawn_attacks[sq] = white_attacks;
+
+        uint64_t black_attacks = 0;
+        if (rank > 0) {
+            if (file > 0) set_bit(&black_attacks, sq-9);
+            if (file < 7) set_bit(&black_attacks, sq-7);
+        }
+        black_pawn_attacks[sq] = black_attacks;
+
+        uint64_t white_pushes = 0;
+        if (rank < 7) {
+            set_bit(&white_pushes, sq+8);
+            if (rank == 1) set_bit(&white_pushes, sq+16);
+        }
+        white_pawn_pushes[sq] = white_pushes;
+
+        uint64_t black_pushes = 0;
+        if (rank > 0) {
+            set_bit(&black_pushes, sq-8);
+            if (rank == 6) set_bit(&black_pushes, sq-16);
+        }
+        black_pawn_pushes[sq] = black_pushes;
     }
 }
 
@@ -168,12 +138,12 @@ void init_king_attacks(void)
         for (int i = 0; i < 8; i++)
         {
             int target = sq + king_offsets[i];
-            int t_rank = RANK_OF(target);
-            int t_file = FILE_OF(target);
+            int delta_rank = DELTA(RANK_OF(target), rank);
+            int delta_file = DELTA(FILE_OF(target), file);
             if (target >= 0 && target < SQUARES && target != sq &&
-                ((DELTA(t_rank, rank) == 1 && DELTA(t_file, file) == 1) ||
-                 (DELTA(t_rank, rank) == 0 || DELTA(t_file, file) == 0)))
-            {
+                ((delta_rank == 1 && delta_file == 0) || 
+                (delta_rank == 0 && delta_file == 1) || 
+                (delta_rank == 1 && delta_file == 1))) {
                 set_bit(&attacks, target);
                 // do castling stuff later
             }
@@ -269,8 +239,7 @@ void move_piece(Board *board, Move move)
     remove_piece(board, move.start, move.piece, move.color);
     if (target_piece != NO_PIECE)
     {
-        clear_bit(&board->pieces[opp][target_piece], move.end);
-        clear_bit(&board->pieces[opp][ALL], move.end);
+        remove_piece(board, move.end, target_piece, opp);
     }
     place_piece(board, move.end, move.piece, move.color);
 }
@@ -310,6 +279,8 @@ bool is_pawn_valid(Board *board, Move move, bool pawn_double_push)
     {
         if (between[move.start][move.end] & board->occupied)
             return false; // piece in way
+        int home_rank = (move.color == WHITE) ? 1 : 6;
+        if (RANK_OF(move.start) != home_rank) return false;
         return true;
     }
 
@@ -334,7 +305,8 @@ bool is_pawn_valid(Board *board, Move move, bool pawn_double_push)
 }
 
 bool valid_move(Board board, Move move) {
-    bool pawn_double_push = (move.piece == PAWN && abs(RANK_OF(move.start) - RANK_OF(move.end)) == 2);
+    bool pawn_double_push = (move.piece == PAWN &&
+        FILE_OF(move.start) == FILE_OF(move.end) && DELTA(RANK_OF(move.end), RANK_OF(move.start)) == 2);
     if (move.piece == PAWN)
     {
         return is_pawn_valid(&board, move, pawn_double_push);
@@ -369,16 +341,20 @@ bool in_check(Board *board, Color color)
         if (piece_type == KING || piece_type == NO_PIECE)
             continue;
 
-        if (valid_move(*board, temp_move))
+        if (valid_move(*board, temp_move)) {
+            printf("Checker: square %d (rank %d, file %c), piece %d\n",
+                    sq, RANK_OF(sq), 'a' + FILE_OF(sq), piece_type);
             return true;
+        }
     }
     return false;
 }
 
-// stalemate quickly, then refactor this crap
+bool is_legal(Board board, Move move) {
+    printf("move: %d -> %d, piece: %d\n", move.start, move.end, move.piece);
+    printf("friendly dest: %d\n", get_bit(board.pieces[move.color][ALL], move.end));
+    printf("valid_move: %d\n", valid_move(board, move));  
 
-bool is_legal(Board board, Move move)
-{
     if (get_bit(board.pieces[move.color][ALL], move.end))
         return false;
     if (move.start == move.end)
@@ -395,6 +371,7 @@ bool is_legal(Board board, Move move)
 
     move_piece(&board, move);
     bool is_in_check = in_check(&board, move.color);
+    printf("in_check after move: %d\n", is_in_check);
     reverse_simulated_move(&board, move, target_piece);
 
     if (is_in_check)
@@ -518,16 +495,19 @@ bool has_legal_moves(Board *board, Color color) {
     return false;
 }
 
-bool in_checkmate(Board *board, Color color)
-{
-    if (!in_check(board, color))
-        return false;
+bool in_checkmate(Board *board, Color color) {
+    if (!in_check(board, color)) return false;
 
     return (!has_legal_moves(board, color));
 }
 
-void print_bitboard(uint64_t board)
-{
+bool in_stalemate(Board* board, Color color) {
+    if (in_check(board, color)) return false;
+
+    return (!has_legal_moves(board, color));
+}
+
+void print_bitboard(uint64_t board) {
     for (int row = 7; row >= 0; row--)
     {
         printf("%d |", row + 1);
@@ -546,8 +526,7 @@ char *piece_symbols[2][6] = {
     [WHITE] = {"♟", "♞", "♝", "♜", "♛", "♚"},
     [BLACK] = {"♙", "♘", "♗", "♖", "♕", "♔"}};
 
-void print_board(Board *board)
-{
+void print_board(Board *board) {
     char *display_board[8][8];
 
     for (int r = 0; r < 8; r++)
