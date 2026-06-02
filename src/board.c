@@ -326,8 +326,7 @@ bool valid_move(Board board, Move move) {
     return false;
 }
 
-bool in_check(Board *board, Color color)
-{
+bool in_check(Board *board, Color color) {
     int king_sq = __builtin_ctzll(board->pieces[color][KING]);
     Color opp = OPP_COLOR(color);
     uint64_t bb = board->pieces[opp][ALL];

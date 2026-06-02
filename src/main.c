@@ -34,7 +34,12 @@ int main(void) {
     do {
         player = (player == BLACK) ? WHITE : BLACK;
         print_board(&board);
-        puts("Please choose a start and end location");
+        switch (player) {
+            case WHITE: printf("White, "); break;
+            case BLACK: printf("Black, "); break;
+            default: break;
+        }
+        puts("please choose a start and end location");
         Move move;
         bool is_valid = false;
         do {
