@@ -149,8 +149,7 @@ void init_king_attacks(void)
             if (target >= 0 && target < SQUARES && target != sq &&
                 ((delta_rank == 1 && delta_file == 0) || 
                 (delta_rank == 0 && delta_file == 1) || 
-                (delta_rank == 1 && delta_file == 1) ||
-                (delta_rank == 0 && delta_file == 2))) {
+                (delta_rank == 1 && delta_file == 1))) {
                 set_bit(&attacks, target);
             }
         }
@@ -341,7 +340,7 @@ bool is_pawn_valid(Board *board, Move move, bool pawn_double_push)
 {
     if (pawn_double_push)
     {
-        if (between[move.start][move.end] & board->occupied)
+        if (between[move.start][move.end] & board->occupied || get_bit(board->occupied, move.end))
             return false; // piece in way
         int home_rank = (move.color == WHITE) ? 1 : 6;
         if (RANK_OF(move.start) != home_rank) return false;
