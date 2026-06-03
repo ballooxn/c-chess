@@ -53,11 +53,11 @@ int main(void) {
                 puts("NOT VALID!!!");
             }
         } while (!is_valid);
-        move_piece(&board, move);
+        move_piece(&board, move, false);
         Color opp = (player == WHITE) ? BLACK : WHITE;
-        if (in_checkmate(&board, opp)) {
+        if (is_checkmate(&board, opp)) {
             winner = player;
-        } else if (in_stalemate(&board, opp)) {
+        } else if (is_stalemate(&board, opp)) {
             winner = STALEMATE;
         }
     } while (winner == NO_WINNER);

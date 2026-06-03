@@ -1,5 +1,6 @@
 #include "board.h"
 #include "main.h"
+#include "move_parser.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -67,6 +68,11 @@ Board init_board(void)
                                board.pieces[BLACK][BISHOP] | board.pieces[BLACK][ROOK] |
                                board.pieces[BLACK][QUEEN] | board.pieces[BLACK][KING];
     board.occupied = board.pieces[BLACK][ALL] | board.pieces[WHITE][ALL];
+
+    board.white_can_castle_kingside = true;
+    board.white_can_castle_queenside = true;
+    board.black_can_castle_kingside= true;
+    board.black_can_castle_queenside = true;
     return board;
 }
 
@@ -143,9 +149,9 @@ void init_king_attacks(void)
             if (target >= 0 && target < SQUARES && target != sq &&
                 ((delta_rank == 1 && delta_file == 0) || 
                 (delta_rank == 0 && delta_file == 1) || 
-                (delta_rank == 1 && delta_file == 1))) {
+                (delta_rank == 1 && delta_file == 1) ||
+                (delta_rank == 0 && delta_file == 2))) {
                 set_bit(&attacks, target);
-                // do castling stuff later
             }
         }
         king_attacks[sq] = attacks;
@@ -217,6 +223,13 @@ PieceType get_piece(Board board, int sq, Color color)
     return NO_PIECE;
 }
 
+static bool is_castle_move(Move move) {
+    if (move.piece != KING) return false;
+    int rank_delta = DELTA(RANK_OF(move.start), RANK_OF(move.end));
+    int file_delta = DELTA(FILE_OF(move.start), FILE_OF(move.end));
+    return (rank_delta == 0 && file_delta == 2);
+}
+
 void place_piece(Board *board, int pos, PieceType pt, Color color)
 {
     set_bit(&board->pieces[color][pt], pos);
@@ -231,7 +244,27 @@ void remove_piece(Board *board, int pos, PieceType pt, Color color)
     clear_bit(&board->pieces[color][ALL], pos);
 }
 
-void move_piece(Board *board, Move move)
+static void move_castle_rook(Board *board, Move king_move, bool reversing) {
+    int rank = RANK_OF(king_move.start);
+    bool kingside = FILE_OF(king_move.end) == 6;
+    int rook_start = kingside ? (rank * 8 + 7) : (rank * 8 + 0);
+    int rook_end = kingside ? (rank * 8 + 5) : (rank * 8 + 3);
+
+    if (reversing) {
+        remove_piece(board, rook_end, ROOK, king_move.color);
+        place_piece(board, rook_start, ROOK, king_move.color);
+    } else {
+        remove_piece(board, rook_start, ROOK, king_move.color);
+        place_piece(board, rook_end, ROOK, king_move.color);
+    }
+}
+
+#define A1 0
+#define H1 7
+#define A8 56
+#define H8 63
+
+void move_piece(Board *board, Move move, bool about_to_reverse)
 {
     Color opp = OPP_COLOR(move.color);
     PieceType target_piece = get_piece(*board, move.end, opp);
@@ -242,6 +275,33 @@ void move_piece(Board *board, Move move)
         remove_piece(board, move.end, target_piece, opp);
     }
     place_piece(board, move.end, move.piece, move.color);
+
+    if (is_castle_move(move)) {
+        move_castle_rook(board, move, false);
+    }
+
+    if (!about_to_reverse) {
+        if (move.piece == KING) {
+            if (move.color == WHITE) {
+                board->white_can_castle_kingside  = false;
+                board->white_can_castle_queenside = false;
+            } else {
+                board->black_can_castle_kingside  = false;
+                board->black_can_castle_queenside = false;
+            }
+        }
+
+        if (move.piece == ROOK) {
+            if (move.color == WHITE) {
+                if (move.start == H1) board->white_can_castle_kingside  = false;
+                if (move.start == A1) board->white_can_castle_queenside = false;
+            } else {
+                if (move.start == H8) board->black_can_castle_kingside  = false;
+                if (move.start == A8) board->black_can_castle_queenside = false;
+            }
+        }
+    }
+
 }
 
 void reverse_simulated_move(Board *board, Move move, PieceType target_piece)
@@ -254,6 +314,10 @@ void reverse_simulated_move(Board *board, Move move, PieceType target_piece)
         place_piece(board, move.end, target_piece, opp);
     }
     place_piece(board, move.start, move.piece, move.color);
+    
+    if (is_castle_move(move)) {
+        move_castle_rook(board, move, true);
+    }
 }
 
 bool is_sliding_valid(Board *board, Move move)
@@ -347,6 +411,38 @@ bool in_check(Board *board, Color color) {
     return false;
 }
 
+bool castling_legal(Board board, Move move) {
+    int rank = RANK_OF(move.start);
+    bool kingside = FILE_OF(move.end) == 6;
+    int rook_file = kingside ? 7 : 0;
+    int rook_sq = rank * 8 + rook_file;
+    int step = kingside ? 1 : -1;
+    int king_path[3] = {move.start, move.start + step, move.start + 2*step};
+
+    if (move.color == WHITE) {
+        if (kingside && !board.white_can_castle_kingside) return false;
+        if (!kingside && !board.white_can_castle_queenside) return false;
+    } else {
+        if (kingside && !board.black_can_castle_kingside) return false;
+        if (!kingside && !board.black_can_castle_queenside) return false;
+    }
+
+    if (!get_bit(board.pieces[move.color][ROOK], rook_sq)) return false;
+
+    for (int sq = move.start + step; sq != rook_sq; sq += step) {
+        if (get_bit(board.occupied, sq)) return false;
+    }
+
+    for (int i = 0; i < 3; i++) {
+        Board temp = board;
+        remove_piece(&temp, king_path[0], KING, move.color);
+        place_piece(&temp, king_path[i], KING, move.color);
+        if (in_check(&temp, move.color)) return false;
+    }
+
+    return true;
+}
+
 bool is_legal(Board board, Move move) {
 
     if (get_bit(board.pieces[move.color][ALL], move.end))
@@ -357,22 +453,20 @@ bool is_legal(Board board, Move move) {
     if (move.piece == NO_PIECE)
         return false;
 
+    if (move.piece == KING && DELTA(RANK_OF(move.start), RANK_OF(move.end)) == 0 &&
+        DELTA(FILE_OF(move.start), FILE_OF(move.end)) == 2) {
+        return castling_legal(board, move);
+    }
+
     if (!valid_move(board, move))
         return false;
-
     Color opp = OPP_COLOR(move.color);
     PieceType target_piece = get_piece(board, move.end, opp);
 
-    move_piece(&board, move);
+    move_piece(&board, move, true);
     bool is_in_check = in_check(&board, move.color);
     reverse_simulated_move(&board, move, target_piece);
-
-    if (is_in_check)
-    {
-        return false;
-    }
-
-    return true;
+    return !is_in_check;
 }
 
 static uint64_t * const pawn_pushes[2] = {white_pawn_pushes, black_pawn_pushes};
@@ -488,13 +582,13 @@ bool has_legal_moves(Board *board, Color color) {
     return false;
 }
 
-bool in_checkmate(Board *board, Color color) {
+bool is_checkmate(Board *board, Color color) {
     if (!in_check(board, color)) return false;
 
     return (!has_legal_moves(board, color));
 }
 
-bool in_stalemate(Board* board, Color color) {
+bool is_stalemate(Board* board, Color color) {
     if (in_check(board, color)) return false;
 
     return (!has_legal_moves(board, color));

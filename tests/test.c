@@ -11,7 +11,7 @@ static void apply_moves(Board *board, char *moves[]) {
         int color = (i % 2 == 0) ? WHITE : BLACK;
         Move move = string_to_move(moves[i], *board, color);
         assert(is_legal(*board, move));
-        move_piece(board, move);
+        move_piece(board, move, false);
     }
 }
 
@@ -35,7 +35,7 @@ void test_move_piece(void) {
     Move move = string_to_move("e2e3", board, WHITE);
     int start_bits = 12;
     int end_bits = 20;
-    move_piece(&board, move);
+    move_piece(&board, move, false);
     assert(!get_bit(board.occupied, start_bits) && get_bit(board.occupied, end_bits) &&
             !get_bit(board.pieces[WHITE][ALL], start_bits) && get_bit(board.pieces[WHITE][ALL], end_bits) &&
             !get_bit(board.pieces[WHITE][PAWN], start_bits) && get_bit(board.pieces[WHITE][ALL], end_bits));
@@ -46,7 +46,7 @@ void test_undo_move(void) {
     Move move = string_to_move("e2e3", board, WHITE);
     int start_bits = 12;
     int end_bits = 20;
-    move_piece(&board, move);
+    move_piece(&board, move, true);
     reverse_simulated_move(&board, move, NO_PIECE);
     assert(!get_bit(board.occupied, end_bits) && get_bit(board.occupied, start_bits) &&
             !get_bit(board.pieces[WHITE][ALL], end_bits) && get_bit(board.pieces[WHITE][ALL], start_bits) &&
@@ -140,19 +140,65 @@ void test_king_movement(void) {
 }
 
 void test_king_castle_kingside(void) {
-    assert(true);
+    Board board = init_board();
+    char *moves[] = {
+        "e2e4", "e7e5",
+        "g1f3", "b8c6",
+        "f1c4", "f8c5",
+        NULL
+    };
+    apply_moves(&board, moves);
+    assert(is_legal(board, string_to_move("e1g1", board, WHITE)));
+    move_piece(&board, string_to_move("e1g1", board, WHITE), false);
+    assert(get_bit(board.pieces[WHITE][ROOK], 5));
 }
 
 void test_king_castle_queenside(void) {
-    assert(true);
+    Board board = init_board();
+    char *moves[] = {
+        "d2d4", "a7a6",
+        "b1a3", "a6a5",
+        "c1e3", "a5a4",
+        "d1d3", "h7h6",
+        NULL
+    };
+    apply_moves(&board, moves);
+    assert(is_legal(board, string_to_move("e1c1", board, WHITE)));
+    move_piece(&board, string_to_move("e1c1", board, WHITE), false);
+    assert(get_bit(board.pieces[WHITE][ROOK], 3));
 }
 
 void test_cant_castle_king_moved(void) {
-    assert(true);
+    Board board = init_board();
+    char *moves[] = {
+        "e2e4", "e7e5",
+        "e1e2", "e8e7",
+        "e2e1", "e7e8",
+        "g1f3", "b8c6",
+        "f1c4", "f8c5",
+        NULL
+    };
+    apply_moves(&board, moves);
+    assert(!is_legal(board, string_to_move("e1g1", board, WHITE)));
+    assert(!is_legal(board, string_to_move("e8g8", board, BLACK)));
 }
 
 void test_cant_castle_rook_moved(void) {
-    assert(true);
+    Board board = init_board();
+    char *moves[] = {
+        "e2e4", "e7e5",
+        "f1c4", "d7d5",
+        "g1f3", "b8c6",
+        "h2h4", "d8f6",
+        "h1h3", "a7a5",
+        "h3h1", "a8a6",
+        "a2a3", "a6a8",
+        "b2b3", "c8d7",
+        NULL
+    };
+    apply_moves(&board, moves);
+    assert(!is_legal(board, string_to_move("e1g1", board, WHITE)));
+    assert(!is_legal(board, string_to_move("e8c8", board, BLACK)));
 }
 
 void test_in_check(void) {
@@ -184,7 +230,19 @@ void test_must_resolve_check(void) {
 }
 
 void test_cant_castle_through_check(void) {
-    assert(true);
+    Board board = init_board();
+    char *moves[] = {
+        "e2e4", "e7e5",
+        "g1h3", "d8h4",
+        "f1c4", "f8c5",
+        "a2a3", "h4f6",
+        "a3a4", "c5f2",
+        "h3f2", "a7a6",
+        "f2h3", "a6a5",
+        NULL
+    };
+    apply_moves(&board, moves);
+    assert(!is_legal(board, string_to_move("e1g1", board, WHITE)));
 }
 
 void test_pinned_piece_cant_move(void) {
@@ -204,7 +262,7 @@ void test_stalemate_basic(void) {
         "d7b7", "d8d3", "b7b8", "d3h7", "b8c8", "f7g6", "c8e6", NULL
     };
     apply_moves(&board, moves);
-    assert(in_stalemate(&board, BLACK));
+    assert(is_stalemate(&board, BLACK));
 }
 
 void test_checkmate_fools_mate(void) {
@@ -213,7 +271,34 @@ void test_checkmate_fools_mate(void) {
         "e2e4", "f7f5", "a2a3", "g7g5", "d1h5", NULL
     };
     apply_moves(&board, moves);
-    assert(in_checkmate(&board, BLACK));
+    assert(is_checkmate(&board, BLACK));
+}
+
+void test_castle_checkmate(void) {
+    Board board = init_board();
+    char *moves[] = {
+        "d2d4", "f7f5",
+        "b1c3", "g8f6",
+        "g1f3", "e7e6",
+        "c1g5", "f8e7",
+        "g5f6", "e7f6",
+        "e2e4", "f5e4",
+        "c3e4", "b7b6",
+        "f3e5", "e8g8",
+        "f1d3", "c8b7",
+        "d1h5", "d8e7",
+        "h5h7", "g8h7",
+        "e4f6", "h7h6",
+        "e5g4", "h6g5",
+        "h2h4", "g5f4",
+        "g2g3", "f4f3",
+        "d3e2", "f3g2",
+        "h1h2", "g2g1",
+        "e1c1",
+        NULL
+    };
+    apply_moves(&board, moves);
+    assert(is_checkmate(&board, BLACK));
 }
 
 void test_in_check_no_checkmate(void) {
@@ -222,7 +307,7 @@ void test_in_check_no_checkmate(void) {
         "e2e4", "f7f5", "d1h5", NULL
     };
     apply_moves(&board, moves);
-    assert(!in_checkmate(&board, BLACK));
+    assert(!is_checkmate(&board, BLACK));
 }
 
 void test_insufficient_material_kvk() {
