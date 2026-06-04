@@ -224,11 +224,11 @@ void remove_piece(Board *board, int pos, PieceType pt, Color color)
     clear_bit(&board->pieces[color][ALL], pos);
 }
 
-PieceType get_piece(Board board, int sq, Color color)
+PieceType get_piece(Board* board, int sq, Color color)
 {
     for (PieceType pt = PAWN; pt <= KING; pt++)
     {
-        if (get_bit(board.pieces[color][pt], sq))
+        if (get_bit(board->pieces[color][pt], sq))
         {
             return pt;
         }
@@ -294,7 +294,7 @@ static void move_castle_rook(Board *board, Move king_move, bool reversing) {
 void move_piece(Board *board, Move move, bool about_to_reverse)
 {
     Color opp = OPP_COLOR(move.color);
-    PieceType target_piece = get_piece(*board, move.end, opp);
+    PieceType target_piece = get_piece(board, move.end, opp);
 
     remove_piece(board, move.start, move.piece, move.color);
     if (target_piece != NO_PIECE)
@@ -364,8 +364,7 @@ bool is_sliding_valid(Board *board, Move move)
     return true;
 }
 
-bool is_pawn_valid(Board *board, Move move, bool pawn_double_push)
-{
+bool is_pawn_valid(Board *board, Move move, bool pawn_double_push) {
     if (pawn_double_push)
     {
         if (between[move.start][move.end] & board->occupied || get_bit(board->occupied, move.end))
@@ -374,33 +373,31 @@ bool is_pawn_valid(Board *board, Move move, bool pawn_double_push)
         if (RANK_OF(move.start) != home_rank) return false;
         return true;
     }
-
-    switch (move.color)
-    {
-    case WHITE:
-        if (get_bit(white_pawn_attacks[move.start], move.end) && get_bit(board->pieces[BLACK][ALL], move.end))
-            return true;
-        if (get_bit(white_pawn_pushes[move.start], move.end) && !get_bit(board->occupied, move.end))
-            return true;
-        break;
-    case BLACK:
-        if (get_bit(black_pawn_attacks[move.start], move.end) && get_bit(board->pieces[WHITE][ALL], move.end))
-            return true;
-        if (get_bit(black_pawn_pushes[move.start], move.end) && !get_bit(board->occupied, move.end))
-            return true;
-        break;
-    default:
-        return false;
+    switch (move.color) {
+        case WHITE:
+            if (get_bit(white_pawn_attacks[move.start], move.end) && get_bit(board->pieces[BLACK][ALL], move.end))
+                return true;
+            if (get_bit(white_pawn_pushes[move.start], move.end) && !get_bit(board->occupied, move.end))
+                return true;
+            break;
+        case BLACK:
+            if (get_bit(black_pawn_attacks[move.start], move.end) && get_bit(board->pieces[WHITE][ALL], move.end))
+                return true;
+            if (get_bit(black_pawn_pushes[move.start], move.end) && !get_bit(board->occupied, move.end))
+                return true;
+            break;
+        default:
+            return false;
     }
     return false;
 }
 
-bool valid_move(Board board, Move move) {
+bool valid_move(Board *board, Move move) {
     bool pawn_double_push = (move.piece == PAWN &&
         FILE_OF(move.start) == FILE_OF(move.end) && DELTA(RANK_OF(move.end), RANK_OF(move.start)) == 2);
     if (move.piece == PAWN)
     {
-        return is_pawn_valid(&board, move, pawn_double_push);
+        return is_pawn_valid(board, move, pawn_double_push);
     }
     else if (move.piece == KNIGHT && get_bit(knight_attacks[move.start], move.end))
     {
@@ -412,7 +409,7 @@ bool valid_move(Board board, Move move) {
     }
     else if (move.piece == QUEEN || move.piece == BISHOP || move.piece == ROOK)
     {
-        return is_sliding_valid(&board, move);
+        return is_sliding_valid(board, move);
     }
     return false;
 }
@@ -425,22 +422,22 @@ bool in_check(Board *board, Color color) {
     {
         int sq = __builtin_ctzll(bb);
         bb &= bb - 1;
-        PieceType piece_type = get_piece(*board, sq, opp);
+        PieceType piece_type = get_piece(board, sq, opp);
         Move temp_move = {.start = sq, .end = king_sq, .piece = piece_type, .color = opp};
 
         if (piece_type == KING || piece_type == NO_PIECE)
             continue;
 
-        if (valid_move(*board, temp_move)) {
+        if (valid_move(board, temp_move)) {
             return true;
         }
     }
     return false;
 }
 
-bool is_legal(Board board, Move move) {
+bool is_legal(Board* board, Move move) {
 
-    if (get_bit(board.pieces[move.color][ALL], move.end))
+    if (get_bit(board->pieces[move.color][ALL], move.end))
         return false;
     if (move.start == move.end)
         return false;
@@ -448,20 +445,18 @@ bool is_legal(Board board, Move move) {
     if (move.piece == NO_PIECE)
         return false;
 
-    if (move.piece == KING && DELTA(RANK_OF(move.start), RANK_OF(move.end)) == 0 &&
-        DELTA(FILE_OF(move.start), FILE_OF(move.end)) == 2) {
+    if (move.piece == KING && is_castle_move(move)) {
         bool kingside = FILE_OF(move.end) == 6;
-        return can_castle(&board, move.color, kingside);
+        return can_castle(board, move.color, kingside);
     }
 
     if (!valid_move(board, move))
         return false;
-    Color opp = OPP_COLOR(move.color);
-    PieceType target_piece = get_piece(board, move.end, opp);
+    PieceType target_piece = get_piece(board, move.end, OPP_COLOR(move.color));
 
-    move_piece(&board, move, true);
-    bool is_in_check = in_check(&board, move.color);
-    reverse_simulated_move(&board, move, target_piece);
+    move_piece(board, move, true);
+    bool is_in_check = in_check(board, move.color);
+    reverse_simulated_move(board, move, target_piece);
     return !is_in_check;
 }
 
@@ -587,7 +582,7 @@ bool has_legal_moves(Board *board, Color color) {
             int count = generators[pt](board, color, sq, possible_end_sqs, pt);
             for (int i = 0; i < count; i++) {
                 Move temp_move = {.start = sq, .end = possible_end_sqs[i], .piece = pt, .color = color};
-                if (is_legal(*board, temp_move)) return true;
+                if (is_legal(board, temp_move)) return true;
             }
         }
     }

@@ -1,5 +1,5 @@
-#ifndef MAIN_H
-#define MAIN_H
+#ifndef MOVE_PARSER_H
+#define MOVE_PARSER_H
 
 #include "board.h"
 #include <stdio.h>

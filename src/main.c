@@ -46,7 +46,7 @@ int main(void) {
             char buffer[5] = "";
             get_player_move(buffer, sizeof(buffer));
             move = string_to_move(buffer, board, player);
-            is_valid = is_legal(board, move);
+            is_valid = is_legal(&board, move);
             if (is_valid) {
                 puts("VALID MOVE");
             } else {

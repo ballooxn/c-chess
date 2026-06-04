@@ -1,33 +1,32 @@
 #include "../src/move_parser.h"
 #include "../src/board.h"
+#include "../src/main.h"
 #include <stdio.h>
 #include <assert.h>
 #include <stdbool.h>
-
-#define TO_BITS(rank, file)     ((rank) * 8 + (file))
 
 static void apply_moves(Board *board, char *moves[]) {
     for (int i = 0; moves[i] != NULL; i++) {
         int color = (i % 2 == 0) ? WHITE : BLACK;
         Move move = string_to_move(moves[i], *board, color);
-        assert(is_legal(*board, move));
+        assert(is_legal(board, move));
         move_piece(board, move, false);
     }
 }
 
 void test_valid_move(void) {
     Board board = init_board();
-    assert(valid_move(board, string_to_move("e2e3", board, WHITE)));
+    assert(valid_move(&board, string_to_move("e2e3", board, WHITE)));
 }
 
 void test_cant_capture_own_pieces(void) {
     Board board = init_board();
-    assert(!is_legal(board, string_to_move("a1b1", board, WHITE)));
+    assert(!is_legal(&board, string_to_move("a1b1", board, WHITE)));
 }
 
 void test_cant_move_opponents_pieces(void) {
     Board board = init_board();
-    assert(!is_legal(board, string_to_move("e7e6", board, WHITE)));
+    assert(!is_legal(&board, string_to_move("e7e6", board, WHITE)));
 }
 
 void test_move_piece(void) {
@@ -55,12 +54,12 @@ void test_undo_move(void) {
 
 void test_double_pawn_push(void) {
     Board board = init_board();
-    assert(is_legal(board, string_to_move("e2e4", board, WHITE)));
+    assert(is_legal(&board, string_to_move("e2e4", board, WHITE)));
 }
 
 void test_single_pawn_push(void) {
     Board board = init_board();
-    assert(is_legal(board, string_to_move("e2e3", board, WHITE)));
+    assert(is_legal(&board, string_to_move("e2e3", board, WHITE)));
 }
 
 void test_pawn_cant_move_backward(void) {
@@ -69,7 +68,7 @@ void test_pawn_cant_move_backward(void) {
         "e2e4", "d7d5", NULL
     };
     apply_moves(&board, moves);
-    assert(!is_legal(board, string_to_move("e4e3", board, WHITE)));
+    assert(!is_legal(&board, string_to_move("e4e3", board, WHITE)));
 }
 
 void test_pawn_capture(void) {
@@ -78,7 +77,7 @@ void test_pawn_capture(void) {
         "e2e4", "d7d5", NULL
     };
     apply_moves(&board, moves);
-    assert(is_legal(board, string_to_move("e4d5", board, WHITE)));
+    assert(is_legal(&board, string_to_move("e4d5", board, WHITE)));
 }
 
 void test_pawn_en_passant(void) {
@@ -91,7 +90,7 @@ void test_pawn_promotion(void) {
 
 void test_knight_movement(void) {
     Board board = init_board();
-    assert(is_legal(board, string_to_move("g1f3", board, WHITE)));
+    assert(is_legal(&board, string_to_move("g1f3", board, WHITE)));
 }
 
 void test_bishop_movement(void) {
@@ -100,7 +99,7 @@ void test_bishop_movement(void) {
         "e2e4", "d7d5", NULL
     };
     apply_moves(&board, moves);
-    assert(is_legal(board, string_to_move("f1c4", board, WHITE)));
+    assert(is_legal(&board, string_to_move("f1c4", board, WHITE)));
 }
 
 void test_bishop_cant_move_like_rook(void) {
@@ -109,7 +108,7 @@ void test_bishop_cant_move_like_rook(void) {
         "e2e4", "d7d5", "f1c4", "a7a6", NULL
     };
     apply_moves(&board, moves);
-    assert(!is_legal(board, string_to_move("c4c3", board, WHITE)));
+    assert(!is_legal(&board, string_to_move("c4c3", board, WHITE)));
 }
 
 void test_rook_movement(void) {
@@ -118,7 +117,7 @@ void test_rook_movement(void) {
         "a2a4", "d7d5", NULL
     };
     apply_moves(&board, moves);
-    assert(is_legal(board, string_to_move("a1a3", board, WHITE)));
+    assert(is_legal(&board, string_to_move("a1a3", board, WHITE)));
 }
 
 void test_queen_movement(void) {
@@ -127,7 +126,7 @@ void test_queen_movement(void) {
         "e2e4", "d7d5", NULL
     };
     apply_moves(&board, moves);
-    assert(is_legal(board, string_to_move("d1h5", board, WHITE)));
+    assert(is_legal(&board, string_to_move("d1h5", board, WHITE)));
 }
 
 void test_king_movement(void) {
@@ -136,7 +135,7 @@ void test_king_movement(void) {
         "e2e4", "d7d5", NULL
     };
     apply_moves(&board, moves);
-    assert(is_legal(board, string_to_move("e1e2", board, WHITE)));
+    assert(is_legal(&board, string_to_move("e1e2", board, WHITE)));
 }
 
 void test_king_castle_kingside(void) {
@@ -148,7 +147,7 @@ void test_king_castle_kingside(void) {
         NULL
     };
     apply_moves(&board, moves);
-    assert(is_legal(board, string_to_move("e1g1", board, WHITE)));
+    assert(is_legal(&board, string_to_move("e1g1", board, WHITE)));
     move_piece(&board, string_to_move("e1g1", board, WHITE), false);
     assert(get_bit(board.pieces[WHITE][ROOK], 5));
 }
@@ -163,7 +162,7 @@ void test_king_castle_queenside(void) {
         NULL
     };
     apply_moves(&board, moves);
-    assert(is_legal(board, string_to_move("e1c1", board, WHITE)));
+    assert(is_legal(&board, string_to_move("e1c1", board, WHITE)));
     move_piece(&board, string_to_move("e1c1", board, WHITE), false);
     assert(get_bit(board.pieces[WHITE][ROOK], 3));
 }
@@ -179,8 +178,8 @@ void test_cant_castle_king_moved(void) {
         NULL
     };
     apply_moves(&board, moves);
-    assert(!is_legal(board, string_to_move("e1g1", board, WHITE)));
-    assert(!is_legal(board, string_to_move("e8g8", board, BLACK)));
+    assert(!is_legal(&board, string_to_move("e1g1", board, WHITE)));
+    assert(!is_legal(&board, string_to_move("e8g8", board, BLACK)));
 }
 
 void test_cant_castle_rook_moved(void) {
@@ -197,8 +196,8 @@ void test_cant_castle_rook_moved(void) {
         NULL
     };
     apply_moves(&board, moves);
-    assert(!is_legal(board, string_to_move("e1g1", board, WHITE)));
-    assert(!is_legal(board, string_to_move("e8c8", board, BLACK)));
+    assert(!is_legal(&board, string_to_move("e1g1", board, WHITE)));
+    assert(!is_legal(&board, string_to_move("e8c8", board, BLACK)));
 }
 
 void test_in_check(void) {
@@ -217,7 +216,7 @@ void test_cant_move_into_check(void) {
         "e2e4", "d7d5", "e1e2", "d8d6", "e2e3", "d6f6", NULL
     };
     apply_moves(&board, moves);
-    assert(!is_legal(board, string_to_move("e3f3", board, WHITE)));
+    assert(!is_legal(&board, string_to_move("e3f3", board, WHITE)));
 }
 
 void test_must_resolve_check(void) {
@@ -226,7 +225,7 @@ void test_must_resolve_check(void) {
         "e2e4", "f7f5", "d1h5", NULL
     };
     apply_moves(&board, moves);
-    assert(!is_legal(board, string_to_move("a2a3", board, BLACK)));
+    assert(!is_legal(&board, string_to_move("a2a3", board, BLACK)));
 }
 
 void test_cant_castle_through_check(void) {
@@ -242,7 +241,7 @@ void test_cant_castle_through_check(void) {
         NULL
     };
     apply_moves(&board, moves);
-    assert(!is_legal(board, string_to_move("e1g1", board, WHITE)));
+    assert(!is_legal(&board, string_to_move("e1g1", board, WHITE)));
 }
 
 void test_pinned_piece_cant_move(void) {
@@ -251,7 +250,7 @@ void test_pinned_piece_cant_move(void) {
         "e2e4", "a7a5", "d1h5", NULL
     };
     apply_moves(&board, moves);
-    assert(!is_legal(board, string_to_move("f7f6", board, BLACK)));
+    assert(!is_legal(&board, string_to_move("f7f6", board, BLACK)));
 }
 
 void test_stalemate_basic(void) {

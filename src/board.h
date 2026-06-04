@@ -51,14 +51,15 @@ typedef struct {
 
 Board init_board(void);
 void init_attacks(void);
-PieceType get_piece(Board board, int sq, Color color);
+PieceType get_piece(Board* board, int sq, Color color);
 void move_piece(Board* board, Move move, bool about_to_reverse);
 void reverse_simulated_move(Board *board, Move move, PieceType target_piece);
+bool valid_move(Board *board, Move move);
 bool in_check(Board *board, Color color);
-bool valid_move(Board board, Move move);
-bool is_legal(Board board, Move move);
+bool is_legal(Board* board, Move move);
+bool has_legal_moves(Board *board, Color color);
 bool is_checkmate(Board *board, Color color);
-bool is_stalemate(Board *board, Color color);
+bool is_stalemate(Board* board, Color color);
 void print_bitboard(uint64_t board);
 void print_board(Board* board);
 
