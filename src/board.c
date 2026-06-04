@@ -474,28 +474,28 @@ int generate_pawn_moves(Board* board, Color color, int sq, int* possible_end_sqs
     int count = 0;
     
     uint64_t push_bb = pawn_pushes[color][sq];
-    int inter_sq = (color == WHITE) ? sq + 8 : sq - 8; // for double push
     while (push_bb) {
         int end_sq = __builtin_ctzll(push_bb);
         push_bb &= push_bb - 1;
         
-        if (get_bit(board->pieces[color][ALL], end_sq)) continue;
-        if (get_bit(board->pieces[opp][ALL], end_sq)) continue;
-        if (DELTA(RANK_OF(end_sq), RANK_OF(sq)) == 2 && get_bit(board->occupied, inter_sq)) continue;
-        possible_end_sqs[count] = end_sq;
-        count += 1;
+        if (get_bit(board->occupied, end_sq)) continue;
+        
+        if (DELTA(RANK_OF(end_sq), RANK_OF(sq)) == 2) {
+            int inter_sq = (color == WHITE) ? sq + 8 : sq - 8;
+            if (get_bit(board->occupied, inter_sq)) continue;
+        }
+        possible_end_sqs[count++] = end_sq;
     }
-    uint64_t diag_bb = pawn_attacks[color][sq];
-    while (diag_bb) {
-        int end_sq = __builtin_ctzll(diag_bb);
-        diag_bb &= diag_bb - 1;
-        if (get_bit(board->pieces[color][ALL], end_sq)) continue;
+    uint64_t attack_bb = pawn_attacks[color][sq];
+    while (attack_bb) {
+        int end_sq = __builtin_ctzll(attack_bb);
+        attack_bb &= attack_bb - 1;
+
         if (get_bit(board->pieces[opp][ALL], end_sq)) {
-            possible_end_sqs[count] = end_sq;
-            count += 1;
+            possible_end_sqs[count++] = end_sq;
         }
     }
-
+    // add promotion/en passant later
     return count;
 }
 
@@ -519,11 +519,11 @@ int generate_knight_king_moves(Board* board, Color color, int sq, int* possible_
     while (attack_bb) {
         int end_sq = __builtin_ctzll(attack_bb);
         attack_bb &= attack_bb - 1;
-        if (get_bit(board->pieces[color][ALL], end_sq)) continue;
-        possible_end_sqs[count] = end_sq;
-        count += 1;
-    }
 
+        if (!get_bit(board->pieces[color][ALL], end_sq)) {
+            possible_end_sqs[count++] = end_sq;
+        }
+    }
     if (pt == KING) count += generate_castling_moves(board, color, sq, possible_end_sqs + count);
 
     return count;
