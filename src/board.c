@@ -76,7 +76,7 @@ Board init_board(void)
     return board;
 }
 
-void init_pawn_attacks(void) {
+static void init_pawn_attacks(void) {
     for (int sq = 0; sq < SQUARES; sq++) {
         int rank = RANK_OF(sq);
         int file = FILE_OF(sq);
@@ -111,7 +111,7 @@ void init_pawn_attacks(void) {
     }
 }
 
-void init_knight_attacks(void)
+static void init_knight_attacks(void)
 {
     for (int sq = 0; sq < SQUARES; sq++)
     {
@@ -134,7 +134,7 @@ void init_knight_attacks(void)
     }
 }
 
-void init_king_attacks(void)
+static void init_king_attacks(void)
 {
     for (int sq = 0; sq < SQUARES; sq++)
     {
@@ -157,7 +157,7 @@ void init_king_attacks(void)
     }
 }
 
-void init_sliding_tables(void)
+static void init_sliding_tables(void)
 {
     const int dirs_rank[8] = {1, -1, 0, 0, 1, 1, -1, -1};
     const int dirs_file[8] = {0, 0, 1, -1, 1, -1, 1, -1};
@@ -210,6 +210,20 @@ void init_attacks(void)
     init_sliding_tables();
 }
 
+void place_piece(Board *board, int pos, PieceType pt, Color color)
+{
+    set_bit(&board->pieces[color][pt], pos);
+    set_bit(&board->pieces[color][ALL], pos);
+    set_bit(&board->occupied, pos);
+}
+
+void remove_piece(Board *board, int pos, PieceType pt, Color color)
+{
+    clear_bit(&board->pieces[color][pt], pos);
+    clear_bit(&board->occupied, pos);
+    clear_bit(&board->pieces[color][ALL], pos);
+}
+
 PieceType get_piece(Board board, int sq, Color color)
 {
     for (PieceType pt = PAWN; pt <= KING; pt++)
@@ -229,18 +243,32 @@ static bool is_castle_move(Move move) {
     return (rank_delta == 0 && file_delta == 2);
 }
 
-void place_piece(Board *board, int pos, PieceType pt, Color color)
-{
-    set_bit(&board->pieces[color][pt], pos);
-    set_bit(&board->pieces[color][ALL], pos);
-    set_bit(&board->occupied, pos);
-}
+static bool can_castle(Board* board, Color color, bool kingside) {
+    if (color == WHITE) {
+        if (kingside && !board->white_can_castle_kingside) return false;
+        if (!kingside && !board->white_can_castle_queenside) return false;
+    } else {
+        if (kingside && !board->black_can_castle_kingside) return false;
+        if (!kingside && !board->black_can_castle_queenside) return false;
+    }
 
-void remove_piece(Board *board, int pos, PieceType pt, Color color)
-{
-    clear_bit(&board->pieces[color][pt], pos);
-    clear_bit(&board->occupied, pos);
-    clear_bit(&board->pieces[color][ALL], pos);
+    int king_start = (color == WHITE) ? 4 : 60;
+    int rook_start = (color == WHITE) ? (kingside ? 7 : 0) : (kingside ? 63 : 56);
+
+    if (!get_bit(board->pieces[color][ROOK], rook_start)) return false;
+    if (in_check(board, color)) return false; // cannot castle while in check
+
+    int step = kingside ? 1 : -1;
+    for (int sq = king_start + step; sq != rook_start; sq += step) {
+        if (get_bit(board->occupied, sq)) return false;
+        // on queenside castle, don't loop through the B file (king wont be touching it)
+        if (!kingside && DELTA(rook_start, sq) == 1) continue;
+        Board temp = *board;
+        remove_piece(&temp, king_start, KING, color);
+        place_piece(&temp, sq, KING, color);
+        if (in_check(&temp, color)) return false;
+    }
+    return true;
 }
 
 static void move_castle_rook(Board *board, Move king_move, bool reversing) {
@@ -410,38 +438,6 @@ bool in_check(Board *board, Color color) {
     return false;
 }
 
-bool castling_legal(Board board, Move move) {
-    int rank = RANK_OF(move.start);
-    bool kingside = FILE_OF(move.end) == 6;
-    int rook_file = kingside ? 7 : 0;
-    int rook_sq = rank * 8 + rook_file;
-    int step = kingside ? 1 : -1;
-    int king_path[3] = {move.start, move.start + step, move.start + 2*step};
-
-    if (move.color == WHITE) {
-        if (kingside && !board.white_can_castle_kingside) return false;
-        if (!kingside && !board.white_can_castle_queenside) return false;
-    } else {
-        if (kingside && !board.black_can_castle_kingside) return false;
-        if (!kingside && !board.black_can_castle_queenside) return false;
-    }
-
-    if (!get_bit(board.pieces[move.color][ROOK], rook_sq)) return false;
-
-    for (int sq = move.start + step; sq != rook_sq; sq += step) {
-        if (get_bit(board.occupied, sq)) return false;
-    }
-
-    for (int i = 0; i < 3; i++) {
-        Board temp = board;
-        remove_piece(&temp, king_path[0], KING, move.color);
-        place_piece(&temp, king_path[i], KING, move.color);
-        if (in_check(&temp, move.color)) return false;
-    }
-
-    return true;
-}
-
 bool is_legal(Board board, Move move) {
 
     if (get_bit(board.pieces[move.color][ALL], move.end))
@@ -454,7 +450,8 @@ bool is_legal(Board board, Move move) {
 
     if (move.piece == KING && DELTA(RANK_OF(move.start), RANK_OF(move.end)) == 0 &&
         DELTA(FILE_OF(move.start), FILE_OF(move.end)) == 2) {
-        return castling_legal(board, move);
+        bool kingside = FILE_OF(move.end) == 6;
+        return can_castle(&board, move.color, kingside);
     }
 
     if (!valid_move(board, move))
@@ -481,6 +478,7 @@ int generate_pawn_moves(Board* board, Color color, int sq, int* possible_end_sqs
     while (push_bb) {
         int end_sq = __builtin_ctzll(push_bb);
         push_bb &= push_bb - 1;
+        
         if (get_bit(board->pieces[color][ALL], end_sq)) continue;
         if (get_bit(board->pieces[opp][ALL], end_sq)) continue;
         if (DELTA(RANK_OF(end_sq), RANK_OF(sq)) == 2 && get_bit(board->occupied, inter_sq)) continue;
@@ -501,6 +499,19 @@ int generate_pawn_moves(Board* board, Color color, int sq, int* possible_end_sqs
     return count;
 }
 
+static int generate_castling_moves(Board* board, Color color, int king_sq, int* possible_end_sqs) {
+    if ((color == WHITE && king_sq != 4) || (color == BLACK && king_sq != 60)) return 0;
+
+    int count = 0;
+    if (can_castle(board, color, true)) { //kingside
+        possible_end_sqs[count++] = (color == WHITE) ? 6 : 62;
+    }
+    if (can_castle(board, color, false)) { //queenside
+        possible_end_sqs[count++] = (color == WHITE) ? 2 : 58;
+    }
+    return count;
+}
+
 int generate_knight_king_moves(Board* board, Color color, int sq, int* possible_end_sqs, PieceType pt) {
     int count = 0;
     
@@ -512,6 +523,8 @@ int generate_knight_king_moves(Board* board, Color color, int sq, int* possible_
         possible_end_sqs[count] = end_sq;
         count += 1;
     }
+
+    if (pt == KING) count += generate_castling_moves(board, color, sq, possible_end_sqs + count);
 
     return count;
 }
