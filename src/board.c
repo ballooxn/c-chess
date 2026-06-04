@@ -163,10 +163,10 @@ static void init_sliding_tables(void)
     const int dirs_file[8] = {0, 0, 1, -1, 1, -1, 1, -1};
     // N,S,E,W,NE,NW,SE,SW
 
-    for (int sq1 = 0; sq1 < SQUARES; sq1++)
+    for (int sq = 0; sq < SQUARES; sq++)
     {
-        int rank1 = RANK_OF(sq1);
-        int file1 = FILE_OF(sq1);
+        int start_rank = RANK_OF(sq);
+        int start_file = FILE_OF(sq);
 
         for (int dir = 0; dir < 8; dir++)
         {
@@ -175,28 +175,28 @@ static void init_sliding_tables(void)
 
             // build whole ray (line)
             uint64_t ray = 0;
-            int rank2 = rank1 + offset_rank;
-            int file2 = file1 + offset_file;
-            while (rank2 >= 0 && rank2 < 8 && file2 >= 0 && file2 < 8)
+            int end_rank = start_rank + offset_rank;
+            int end_file = start_file + offset_file;
+            while (end_rank >= 0 && end_rank < 8 && end_file >= 0 && end_file < 8)
             {
-                int sq2 = rank2 * 8 + file2;
-                set_bit(&ray, sq2);
-                rank2 += offset_rank;
-                file2 += offset_file;
+                int end_sq = end_rank * 8 + end_file;
+                set_bit(&ray, end_sq);
+                end_rank += offset_rank;
+                end_file += offset_file;
             }
 
             // build between
-            rank2 = rank1 + offset_rank;
-            file2 = file1 + offset_file;
+            end_rank = start_rank + offset_rank;
+            end_file = start_file + offset_file;
             uint64_t between_mask = 0;
-            while (rank2 >= 0 && rank2 < 8 && file2 >= 0 && file2 < 8)
+            while (end_rank >= 0 && end_rank < 8 && end_file >= 0 && end_file < 8)
             {
-                int sq2 = rank2 * 8 + file2;
-                line[sq1][sq2] = (1ULL << sq1) | (1ULL << sq2) | between_mask; // include starting pos
-                between[sq1][sq2] = between_mask;
-                set_bit(&between_mask, sq2);
-                rank2 += offset_rank;
-                file2 += offset_file;
+                int end_sq = end_rank * 8 + end_file;
+                line[sq][end_sq] = (1ULL << sq) | (1ULL << end_sq) | between_mask; // include starting pos
+                between[sq][end_sq] = between_mask;
+                set_bit(&between_mask, end_sq);
+                end_rank += offset_rank;
+                end_file += offset_file;
             }
         }
     }
@@ -210,18 +210,18 @@ void init_attacks(void)
     init_sliding_tables();
 }
 
-void place_piece(Board *board, int pos, PieceType pt, Color color)
+void place_piece(Board *board, int sq, PieceType pt, Color color)
 {
-    set_bit(&board->pieces[color][pt], pos);
-    set_bit(&board->pieces[color][ALL], pos);
-    set_bit(&board->occupied, pos);
+    set_bit(&board->pieces[color][pt], sq);
+    set_bit(&board->pieces[color][ALL], sq);
+    set_bit(&board->occupied, sq);
 }
 
-void remove_piece(Board *board, int pos, PieceType pt, Color color)
+void remove_piece(Board *board, int sq, PieceType pt, Color color)
 {
-    clear_bit(&board->pieces[color][pt], pos);
-    clear_bit(&board->occupied, pos);
-    clear_bit(&board->pieces[color][ALL], pos);
+    clear_bit(&board->pieces[color][pt], sq);
+    clear_bit(&board->occupied, sq);
+    clear_bit(&board->pieces[color][ALL], sq);
 }
 
 PieceType get_piece(Board* board, int sq, Color color)
@@ -251,9 +251,8 @@ static bool can_castle(Board* board, Color color, bool kingside) {
         if (kingside && !board->black_can_castle_kingside) return false;
         if (!kingside && !board->black_can_castle_queenside) return false;
     }
-
-    int king_start = (color == WHITE) ? 4 : 60;
-    int rook_start = (color == WHITE) ? (kingside ? 7 : 0) : (kingside ? 63 : 56);
+    int king_start = (color == WHITE) ? E1 : E8;
+    int rook_start = (color == WHITE) ? (kingside ? 7 : 0) : (kingside ? H8 : A8);
 
     if (!get_bit(board->pieces[color][ROOK], rook_start)) return false;
     if (in_check(board, color)) return false; // cannot castle while in check
@@ -285,11 +284,6 @@ static void move_castle_rook(Board *board, Move king_move, bool reversing) {
         place_piece(board, rook_end, ROOK, king_move.color);
     }
 }
-
-#define A1 0
-#define H1 7
-#define A8 56
-#define H8 63
 
 void move_piece(Board *board, Move move, bool about_to_reverse)
 {
@@ -499,10 +493,10 @@ static int generate_castling_moves(Board* board, Color color, int king_sq, int* 
 
     int count = 0;
     if (can_castle(board, color, true)) { //kingside
-        possible_end_sqs[count++] = (color == WHITE) ? 6 : 62;
+        possible_end_sqs[count++] = (color == WHITE) ? G1 : G8;
     }
     if (can_castle(board, color, false)) { //queenside
-        possible_end_sqs[count++] = (color == WHITE) ? 2 : 58;
+        possible_end_sqs[count++] = (color == WHITE) ? C1 : C8;
     }
     return count;
 }

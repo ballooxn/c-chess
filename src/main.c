@@ -28,7 +28,7 @@ int main(void) {
     Board board = init_board();
     init_attacks();
 
-    Color winner = NO_WINNER;
+    GameResult winner = RESULT_NONE;
     Color player = BLACK;
 
     do {
@@ -56,18 +56,18 @@ int main(void) {
         move_piece(&board, move, false);
         Color opp = (player == WHITE) ? BLACK : WHITE;
         if (is_checkmate(&board, opp)) {
-            winner = player;
+            winner = (player == WHITE) ? RESULT_WHITE_WINS : RESULT_BLACK_WINS;
         } else if (is_stalemate(&board, opp)) {
-            winner = STALEMATE;
+            winner = RESULT_STALEMATE;
         }
-    } while (winner == NO_WINNER);
-    if (winner == STALEMATE) {
+    } while (winner == RESULT_NONE);
+    if (winner == RESULT_STALEMATE) {
         puts("Stalemate! Nobody wins!");
     } else {
         printf("Checkmate! the winner is: ");
         switch (winner) {
-            case WHITE: printf("White.\n"); break;
-            case BLACK: printf("Black.\n"); break;
+            case RESULT_WHITE_WINS: printf("White.\n"); break;
+            case RESULT_BLACK_WINS: printf("Black.\n"); break;
             default: break;
         }
     }

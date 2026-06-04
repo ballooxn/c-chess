@@ -8,8 +8,20 @@
 #define FILE_OF(pos)            ((pos) % 8)
 #define DELTA(new, old)    (abs((new) - (old)))
 
-typedef enum {WHITE, BLACK, COLOR_NUM, STALEMATE = -1, NO_WINNER = -2} Color;
+#define A1 0
+#define C1 2
+#define E1 4
+#define G1 6
+#define H1 7
+#define A8 56
+#define C8 58
+#define E8 60
+#define G8 62
+#define H8 63
+
+typedef enum {WHITE, BLACK, COLOR_NUM} Color;
 typedef enum {PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING, ALL, PIECE_NUM, NO_PIECE = -1} PieceType;
+typedef enum {RESULT_NONE, RESULT_WHITE_WINS, RESULT_BLACK_WINS, RESULT_STALEMATE} GameResult;
 
 #define OPP_COLOR(color)    (((color) == WHITE) ? BLACK : WHITE)
 
