@@ -60,6 +60,14 @@ int main(void) {
         } else if (is_stalemate(&board, opp)) {
             winner = RESULT_STALEMATE;
         }
+        if (move.piece == PAWN && DELTA(RANK_OF(move.end), RANK_OF(move.start)) == 2) {
+            board.last_double_push = move.end;
+            // set sq to the square directly between newly pushed pawned
+            board.enpassant_sq = move.end + (player == WHITE ? -8 : 8);
+        } else {
+            board.last_double_push = 100; // basically NULL
+            board.enpassant_sq = 100;
+        }
     } while (winner == RESULT_NONE);
     if (winner == RESULT_STALEMATE) {
         puts("Stalemate! Nobody wins!");

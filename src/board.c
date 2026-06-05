@@ -73,6 +73,8 @@ Board init_board(void)
     board.white_can_castle_queenside = true;
     board.black_can_castle_kingside= true;
     board.black_can_castle_queenside = true;
+    board.last_double_push = 100; //basically NULL
+    board.enpassant_sq = 100;
     return board;
 }
 
@@ -224,8 +226,7 @@ void remove_piece(Board *board, int sq, PieceType pt, Color color)
     clear_bit(&board->pieces[color][ALL], sq);
 }
 
-PieceType get_piece(Board* board, int sq, Color color)
-{
+PieceType get_piece(Board* board, int sq, Color color) {
     for (PieceType pt = PAWN; pt <= KING; pt++)
     {
         if (get_bit(board->pieces[color][pt], sq))
@@ -241,6 +242,10 @@ static bool is_castle_move(Move move) {
     int rank_delta = DELTA(RANK_OF(move.start), RANK_OF(move.end));
     int file_delta = DELTA(FILE_OF(move.start), FILE_OF(move.end));
     return (rank_delta == 0 && file_delta == 2);
+}
+
+bool is_enpassant(const Board* board, Move move) {
+    return move.piece == PAWN && move.end == board->enpassant_sq;
 }
 
 static bool can_castle(Board* board, Color color, bool kingside) {
@@ -295,6 +300,13 @@ void move_piece(Board *board, Move move, bool about_to_reverse)
     {
         remove_piece(board, move.end, target_piece, opp);
     }
+    if (is_enpassant(board, move)) {
+        int side_dir = (FILE_OF(move.end) > FILE_OF(move.start)) ? 1 : -1;
+        int side_pawn = move.start + side_dir;
+        if (get_bit(board->pieces[opp][PAWN], side_pawn)) {
+            remove_piece(board, side_pawn, PAWN, opp);
+        }
+    }
     place_piece(board, move.end, move.piece, move.color);
 
     if (is_castle_move(move)) {
@@ -322,7 +334,6 @@ void move_piece(Board *board, Move move, bool about_to_reverse)
             }
         }
     }
-
 }
 
 void reverse_simulated_move(Board *board, Move move, PieceType target_piece)
@@ -338,6 +349,14 @@ void reverse_simulated_move(Board *board, Move move, PieceType target_piece)
     
     if (is_castle_move(move)) {
         move_castle_rook(board, move, true);
+    }
+
+    if (move.piece == PAWN && is_enpassant(board, move)) {
+        int side_dir = (FILE_OF(move.end) - FILE_OF(move.start) == 1) ? 1 : -1;
+        int side_pawn = move.start + side_dir;
+        if (!get_bit(board->occupied, side_pawn)) {
+            place_piece(board, side_pawn, PAWN, opp);
+        }
     }
 }
 
@@ -365,6 +384,14 @@ bool is_pawn_valid(Board *board, Move move, bool pawn_double_push) {
             return false; // piece in way
         int home_rank = (move.color == WHITE) ? 1 : 6;
         if (RANK_OF(move.start) != home_rank) return false;
+        return true;
+    }
+    if (is_enpassant(board, move)) {
+        // en passant move
+        int side_dir = (FILE_OF(move.end) - FILE_OF(move.start) == 1) ? 1 : -1;
+        int side_pawn = move.start + side_dir;
+        if (board->last_double_push != side_pawn) return false;
+        if (!get_bit(board->pieces[OPP_COLOR(move.color)][PAWN], side_pawn)) return false;
         return true;
     }
     switch (move.color) {
@@ -459,7 +486,6 @@ static uint64_t * const pawn_attacks[2] = {white_pawn_attacks, black_pawn_attack
 
 int generate_pawn_moves(Board* board, Color color, int sq, int* possible_end_sqs, PieceType pt) {
     (void)pt;
-    Color opp = OPP_COLOR(color);
     int count = 0;
     
     uint64_t push_bb = pawn_pushes[color][sq];
@@ -480,11 +506,12 @@ int generate_pawn_moves(Board* board, Color color, int sq, int* possible_end_sqs
         int end_sq = __builtin_ctzll(attack_bb);
         attack_bb &= attack_bb - 1;
 
-        if (get_bit(board->pieces[opp][ALL], end_sq)) {
-            possible_end_sqs[count++] = end_sq;
-        }
+        if (get_bit(board->pieces[color][ALL], end_sq)) continue;
+        // put en passant in temporary move gen
+        // auto remove any illegal enpassants in is_legal later
+        possible_end_sqs[count++] = end_sq;
     }
-    // add promotion/en passant later
+    
     return count;
 }
 
@@ -549,7 +576,6 @@ int generate_sliding_moves(Board* board, Color color, int sq, int* possible_end_
             }
         }
     }
-
     return count;
 }
 

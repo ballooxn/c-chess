@@ -25,13 +25,13 @@ typedef enum {RESULT_NONE, RESULT_WHITE_WINS, RESULT_BLACK_WINS, RESULT_STALEMAT
 
 #define OPP_COLOR(color)    (((color) == WHITE) ? BLACK : WHITE)
 
-static inline void set_bit(uint64_t* bb, int sq) {
+inline void set_bit(uint64_t* bb, int sq) {
     *bb |= (1ULL << sq);
 }
-static inline void clear_bit(uint64_t* bb, int sq) {
+inline void clear_bit(uint64_t* bb, int sq) {
     *bb &= ~(1ULL << sq);
 }
-static inline bool get_bit(uint64_t bb, int sq) {
+inline bool get_bit(uint64_t bb, int sq) {
     return (bb & (1ULL << sq)) != 0;
 }
 
@@ -52,6 +52,8 @@ typedef struct {
     bool white_can_castle_queenside;
     bool black_can_castle_kingside;
     bool black_can_castle_queenside;
+    int last_double_push;
+    int enpassant_sq;
 } Board;
 
 typedef struct {
@@ -66,6 +68,7 @@ void init_attacks(void);
 PieceType get_piece(Board* board, int sq, Color color);
 void move_piece(Board* board, Move move, bool about_to_reverse);
 void reverse_simulated_move(Board *board, Move move, PieceType target_piece);
+bool is_enpassant(const Board* board, Move move);
 bool valid_move(Board *board, Move move);
 bool in_check(Board *board, Color color);
 bool is_legal(Board* board, Move move);

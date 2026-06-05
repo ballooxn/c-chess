@@ -11,6 +11,14 @@ static void apply_moves(Board *board, char *moves[]) {
         Move move = string_to_move(moves[i], *board, color);
         assert(is_legal(board, move));
         move_piece(board, move, false);
+        if (move.piece == PAWN && DELTA(RANK_OF(move.end), RANK_OF(move.start)) == 2) {
+            board->last_double_push = move.end;
+            // set sq to the square directly between newly pushed pawned
+            board->enpassant_sq = move.end + (color == WHITE ? -8 : 8);
+        } else {
+            board->last_double_push = 100; // basically NULL
+            board->enpassant_sq = 100;
+        }
     }
 }
 
@@ -81,7 +89,30 @@ void test_pawn_capture(void) {
 }
 
 void test_pawn_en_passant(void) {
-    assert(true);
+    Board board = init_board();
+    char *moves[] = {
+        "e2e4", "d7d5",
+        "e4e5", "f7f5",
+        NULL
+    };
+    apply_moves(&board, moves);
+    assert(is_legal(&board, string_to_move("e5f6", board, WHITE)));
+}
+
+void test_pawn_en_passant_capture_removal(void) {
+    Board board = init_board();
+    char *moves[] = {
+        "e2e4", "d7d5",
+        "e4e5", "f7f5",
+        NULL
+    };
+    apply_moves(&board, moves);
+
+    Move ep_move = string_to_move("e5f6", board, WHITE);
+    assert(is_legal(&board, ep_move));
+
+    move_piece(&board, ep_move, false);
+    assert(!get_bit(board.pieces[BLACK][PAWN], TO_BITS(4, 4))); // d5
 }
 
 void test_pawn_promotion(void) {
@@ -339,11 +370,12 @@ int main(void) {
     test_single_pawn_push();
     test_double_pawn_push();
     test_pawn_cant_move_backward();
-    test_bishop_cant_move_like_rook();
     test_pawn_capture();
     test_pawn_en_passant();
+    test_pawn_en_passant_capture_removal();
     test_knight_movement();
     test_bishop_movement();
+    test_bishop_cant_move_like_rook();
     test_rook_movement();
     test_queen_movement();
     test_king_movement();
