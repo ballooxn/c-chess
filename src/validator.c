@@ -146,9 +146,16 @@ bool is_legal(Board* board, Move move) {
     if (!valid_move(board, move))
         return false;
     PieceType target_piece = get_piece(board, move.end, OPP_COLOR(move.color));
+    OldValidations old_valids;
+    old_valids.ep_sq = board->enpassant_sq;
+    old_valids.last_dbl = board->last_double_push;
+    old_valids.white_kingside = board->white_can_castle_kingside;
+    old_valids.white_queenside = board->white_can_castle_queenside;
+    old_valids.black_kingside = board->black_can_castle_kingside;
+    old_valids.black_queenside = board->black_can_castle_queenside;
 
     move_piece(board, move, true);
     bool is_in_check = in_check(board, move.color);
-    reverse_simulated_move(board, move, target_piece);
+    reverse_simulated_move(board, move, target_piece, &old_valids);
     return !is_in_check;
 }

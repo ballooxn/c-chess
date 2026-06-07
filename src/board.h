@@ -67,6 +67,22 @@ typedef struct {
     int repetition_count;
 } Board;
 
+#define MAX_MOVES 256
+
+typedef struct {
+    Move moves[MAX_MOVES];
+    int count;
+} MoveList;
+
+typedef struct {
+    int last_dbl;
+    int ep_sq;
+    bool white_kingside;
+    bool white_queenside;
+    bool black_kingside;
+    bool black_queenside;
+} OldValidations;
+
 Board init_board(void);
 void init_attacks(void);
 PieceType get_piece(Board* board, int sq, Color color);
@@ -74,9 +90,10 @@ bool is_castle_move(Move move);
 void place_piece(Board *board, int sq, PieceType pt, Color color);
 void remove_piece(Board *board, int sq, PieceType pt, Color color);
 void move_piece(Board* board, Move move, bool about_to_reverse);
-void reverse_simulated_move(Board *board, Move move, PieceType target_piece);
+void reverse_simulated_move(Board *board, Move move, PieceType target_piece, OldValidations *old_valids);
 void promote_pawn(Board* board, int sq, char promo_char, Color color);
 bool is_enpassant(const Board* board, Move move);
+void generate_legal_moves(Board* board, Color color, MoveList* list);
 bool has_legal_moves(Board *board, Color color);
 bool is_checkmate(Board *board, Color color);
 bool is_stalemate(Board* board, Color color);

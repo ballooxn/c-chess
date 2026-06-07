@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 199309L
 #include "../src/move_parser.h"
 #include "../src/board.h"
 #include "../src/main.h"
@@ -5,6 +6,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <time.h>
 
 static void apply_moves(Board *board, char *moves[]) {
     for (int i = 0; moves[i] != NULL; i++) {
@@ -21,6 +23,83 @@ static void apply_moves(Board *board, char *moves[]) {
             board->enpassant_sq = 100;
         }
     }
+}
+
+uint64_t perft(Board* board, Color color, int depth) {
+    if (depth == 0) return 1;
+
+    MoveList list;
+    generate_legal_moves(board, color, &list);
+
+    uint64_t nodes = 0;
+
+    for (int i = 0; i < list.count; i++) {
+        Move move = list.moves[i];
+
+        PieceType target = get_piece(board, move.end, OPP_COLOR(color));
+        OldValidations old_valids;
+        old_valids.ep_sq = board->enpassant_sq;
+        old_valids.last_dbl = board->last_double_push;
+        old_valids.white_kingside = board->white_can_castle_kingside;
+        old_valids.white_queenside = board->white_can_castle_queenside;
+        old_valids.black_kingside = board->black_can_castle_kingside;
+        old_valids.black_queenside = board->black_can_castle_queenside;
+        move_piece(board, move, false);
+
+        nodes += perft(board, OPP_COLOR(color), depth - 1);
+        
+        reverse_simulated_move(board, move, target, &old_valids);
+    }
+
+    return nodes;
+}
+
+void test_perft_depth_one(void) {
+    Board board = init_board();
+    int depth = 1;
+    uint64_t result = perft(&board, WHITE, depth);
+    printf("Perft %d: %lu\n", depth, result);
+    assert(result == 20);
+}
+
+void test_perft_depth_two(void) {
+    Board board = init_board();
+    int depth = 2;
+    uint64_t result = perft(&board, WHITE, depth);
+    printf("Perft %d: %lu\n", depth, result);
+    assert(result == 400);
+}
+
+void test_perft_depth_three(void) {
+    Board board = init_board();
+    int depth = 3;
+    uint64_t result = perft(&board, WHITE, depth);
+    printf("Perft %d: %lu\n", depth, result);
+    assert(result == 8902);
+}
+
+void test_perft_depth_four(void) {
+    Board board = init_board();
+    int depth = 4;
+    uint64_t result = perft(&board, WHITE, depth);
+    printf("Perft %d: %lu\n", depth, result);
+    assert(result == 197281);
+}
+
+void test_perft_depth_five(void) {
+    Board board = init_board();
+    int depth = 5;
+    uint64_t result = perft(&board, WHITE, depth);
+    printf("Perft %d: %lu\n", depth, result);
+    assert(result == 4865609);
+}
+
+void test_perft_depth_six(void) {
+    Board board = init_board();
+    int depth = 6;
+    uint64_t result = perft(&board, WHITE, depth);
+    printf("Perft %d: %lu\n", depth, result);
+    assert(result == 119060324);
 }
 
 void test_valid_move(void) {
@@ -54,8 +133,15 @@ void test_undo_move(void) {
     Move move = string_to_move("e2e3", board, WHITE);
     int start_bits = 12;
     int end_bits = 20;
+    OldValidations old_valids;
+    old_valids.ep_sq = board.enpassant_sq;
+    old_valids.last_dbl = board.last_double_push;
+    old_valids.white_kingside = board.white_can_castle_kingside;
+    old_valids.white_queenside = board.white_can_castle_queenside;
+    old_valids.black_kingside = board.black_can_castle_kingside;
+    old_valids.black_queenside = board.black_can_castle_queenside;
     move_piece(&board, move, true);
-    reverse_simulated_move(&board, move, NO_PIECE);
+    reverse_simulated_move(&board, move, NO_PIECE, &old_valids);
     assert(!get_bit(board.occupied, end_bits) && get_bit(board.occupied, start_bits) &&
             !get_bit(board.pieces[WHITE][ALL], end_bits) && get_bit(board.pieces[WHITE][ALL], start_bits) &&
             !get_bit(board.pieces[WHITE][PAWN], end_bits) && get_bit(board.pieces[WHITE][ALL], start_bits));
@@ -374,6 +460,28 @@ void test_threefold_repitition(void) {
     assert(true);
 }
 
+#define RUNS 10
+
+void run_perft_timed_tests() {
+    double total = 0.0;
+    for (int i =0; i < RUNS; i++) {
+        struct timespec start, end;
+        clock_gettime(CLOCK_MONOTONIC, &start);
+
+        test_perft_depth_one();
+        test_perft_depth_two();
+        test_perft_depth_three();
+        test_perft_depth_four();
+        test_perft_depth_five();
+        //test_perft_depth_six();
+
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        total += (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
+    }
+    double average = total / RUNS;
+    printf("Time: %.6f seconds\n", average);  
+}
+
 int main(void) {
     init_attacks();
     test_valid_move();
@@ -411,6 +519,9 @@ int main(void) {
     test_insufficient_material_kvkn();
     test_fifty_move_rule();
     test_threefold_repitition();
-    puts("All tests passed.");
+    puts("All tests passed.");  
+
+    run_perft_timed_tests();
+
     return 0;
 }

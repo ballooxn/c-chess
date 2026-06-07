@@ -1,6 +1,7 @@
 #include "board.h"
 #include "move_parser.h"
 #include "validator.h"
+#include "engine.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -245,7 +246,17 @@ bool is_castle_move(Move move) {
 }
 
 bool is_enpassant(const Board* board, Move move) {
-    return move.piece == PAWN && move.end == board->enpassant_sq;
+    if (move.piece != PAWN) return false;
+    if (move.end != board->enpassant_sq) return false;
+
+    int file_diff = FILE_OF(move.end) - FILE_OF(move.start);
+    if (abs(file_diff) != 1) return false;
+    if (DELTA(RANK_OF(move.end), RANK_OF(move.start)) != (move.color == WHITE ? 1 : -1)) return false;
+
+    int side_pawn_sq = move.start + (file_diff > 0 ? 1 : -1);
+    if (!get_bit(board->pieces[OPP_COLOR(move.color)][PAWN], side_pawn_sq)) return false;
+
+    return board->last_double_push == side_pawn_sq;
 }
 
 static void move_castle_rook(Board *board, Move king_move, bool reversing) {
@@ -276,14 +287,20 @@ void move_piece(Board *board, Move move, bool about_to_reverse)
     if (is_enpassant(board, move)) {
         int side_dir = (FILE_OF(move.end) > FILE_OF(move.start)) ? 1 : -1;
         int side_pawn = move.start + side_dir;
-        if (get_bit(board->pieces[opp][PAWN], side_pawn)) {
-            remove_piece(board, side_pawn, PAWN, opp);
-        }
+        remove_piece(board, side_pawn, PAWN, opp);
     }
     place_piece(board, move.end, move.piece, move.color);
 
     if (is_castle_move(move)) {
         move_castle_rook(board, move, false);
+    }
+
+    if (move.piece == PAWN && DELTA(RANK_OF(move.end), RANK_OF(move.start)) == 2) {
+        board->last_double_push = move.end;
+        board->enpassant_sq = move.end + (move.color == WHITE ? -8 : 8);
+    } else {
+        board->last_double_push = 100;
+        board->enpassant_sq = 100;
     }
 
     if (!about_to_reverse) {
@@ -309,8 +326,7 @@ void move_piece(Board *board, Move move, bool about_to_reverse)
     }
 }
 
-void reverse_simulated_move(Board *board, Move move, PieceType target_piece)
-{
+void reverse_simulated_move(Board *board, Move move, PieceType target_piece, OldValidations *old_valids) {
     Color opp = OPP_COLOR(move.color);
 
     remove_piece(board, move.end, move.piece, move.color);
@@ -324,13 +340,19 @@ void reverse_simulated_move(Board *board, Move move, PieceType target_piece)
         move_castle_rook(board, move, true);
     }
 
-    if (move.piece == PAWN && is_enpassant(board, move)) {
-        int side_dir = (FILE_OF(move.end) - FILE_OF(move.start) == 1) ? 1 : -1;
+    if (move.piece == PAWN && move.end == old_valids->ep_sq &&
+         abs(FILE_OF(move.end) - FILE_OF(move.start)) == 1 &&
+         old_valids->last_dbl == move.start + (FILE_OF(move.end) > FILE_OF(move.start) ? 1 : -1))  {
+        int side_dir = (FILE_OF(move.end) > FILE_OF(move.start)) ? 1 : -1;
         int side_pawn = move.start + side_dir;
-        if (!get_bit(board->occupied, side_pawn)) {
-            place_piece(board, side_pawn, PAWN, opp);
-        }
+        place_piece(board, side_pawn, PAWN, opp);
     }
+    board->last_double_push = old_valids->last_dbl;
+    board->enpassant_sq = old_valids->ep_sq;
+    board->white_can_castle_kingside = old_valids->white_kingside;
+    board->white_can_castle_queenside = old_valids->white_queenside;
+    board->black_can_castle_kingside = old_valids->black_kingside;
+    board->black_can_castle_queenside = old_valids->black_queenside;
 }
 
 void promote_pawn(Board* board, int sq, char promo_char, Color color) {
@@ -341,7 +363,7 @@ void promote_pawn(Board* board, int sq, char promo_char, Color color) {
         case 'q': new_piece = QUEEN; break;
         case 'r': new_piece = ROOK; break;
         case 'b': new_piece = BISHOP; break;
-        case 'n': new_piece = ROOK; break;
+        case 'n': new_piece = KNIGHT; break;
         default: new_piece = QUEEN; break;
     }
     place_piece(board, sq, new_piece, color);
@@ -372,10 +394,10 @@ int generate_pawn_moves(Board* board, Color color, int sq, int* possible_end_sqs
         int end_sq = __builtin_ctzll(attack_bb);
         attack_bb &= attack_bb - 1;
 
-        if (get_bit(board->pieces[color][ALL], end_sq)) continue;
-        // put en passant in temporary move gen
-        // auto remove any illegal enpassants in is_legal later
-        possible_end_sqs[count++] = end_sq;
+        if (get_bit(board->pieces[OPP_COLOR(color)][ALL], end_sq) ||
+            end_sq == board->enpassant_sq) {
+            possible_end_sqs[count++] = end_sq;
+        }
     }
     
     return count;
@@ -426,12 +448,17 @@ int generate_sliding_moves(Board* board, Color color, int sq, int* possible_end_
     int dir_count = dir_counts[pt];
 
     for (int dir = 0; dir < dir_count; dir++) {
-        int new_sq = sq;
+        int current_sq = sq;
         while (1) {
-            new_sq += dirs[dir];
+            int new_sq = current_sq + dirs[dir];
             if (new_sq < 0 || new_sq > 63) break;
+
             if (line[sq][new_sq] == 0) break;
+
+            if (DELTA(FILE_OF(new_sq), FILE_OF(current_sq)) > 1) break;
+
             if (get_bit(board->pieces[color][ALL], new_sq)) break;
+
             if (get_bit(board->pieces[opp][ALL], new_sq)) {
                 possible_end_sqs[count] = new_sq;
                 count += 1;
@@ -440,6 +467,7 @@ int generate_sliding_moves(Board* board, Color color, int sq, int* possible_end_
                 possible_end_sqs[count] = new_sq;
                 count += 1;
             }
+            current_sq = new_sq;
         }
     }
     return count;
@@ -454,6 +482,30 @@ MoveGenFunc generators[6] = {
     generate_sliding_moves,
     generate_knight_king_moves  
 };
+
+
+void generate_legal_moves(Board* board, Color color, MoveList* list) {
+    list->count = 0;
+    
+    for (PieceType pt = PAWN; pt <= KING; pt++) {
+        uint64_t bb = board->pieces[color][pt];
+        if (!bb) continue;
+
+        while (bb) {
+            int sq = __builtin_ctzll(bb);
+            bb &= bb - 1;
+
+            int possible_end_sqs[64];
+            int end_sq_count = generators[pt](board, color, sq, possible_end_sqs, pt);
+            for (int i = 0; i < end_sq_count; i++) {
+                Move move = {.start = sq, .end = possible_end_sqs[i], .piece = pt, .color = color};
+                if (is_legal(board, move)) {
+                    list->moves[list->count++] = move;
+                }
+            }
+        }
+    }
+}
 
 bool has_legal_moves(Board *board, Color color) {
     for (PieceType pt = PAWN; pt <= KING; pt++) {
