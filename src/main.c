@@ -54,12 +54,21 @@ int main(void) {
             }
         } while (!is_valid);
         move_piece(&board, move, false);
+        // pawn promotion
+        if (move.piece == PAWN && (RANK_OF(move.end) == 7 || RANK_OF(move.end) == 0)) {
+            char promo_choice = get_promotion_choice(move.color);
+            promote_pawn(&board, move.end, promo_choice, move.color);
+        }
+
         Color opp = (player == WHITE) ? BLACK : WHITE;
         if (is_checkmate(&board, opp)) {
             winner = (player == WHITE) ? RESULT_WHITE_WINS : RESULT_BLACK_WINS;
         } else if (is_stalemate(&board, opp)) {
             winner = RESULT_STALEMATE;
+        } else if (insufficient_material(&board)) {
+            winner = RESULT_INSUFF_MATERIAL;
         }
+
         if (move.piece == PAWN && DELTA(RANK_OF(move.end), RANK_OF(move.start)) == 2) {
             board.last_double_push = move.end;
             // set sq to the square directly between newly pushed pawned

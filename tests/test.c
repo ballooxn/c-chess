@@ -116,7 +116,20 @@ void test_pawn_en_passant_capture_removal(void) {
 }
 
 void test_pawn_promotion(void) {
-    assert(true);
+    Board board = init_board();
+    char *moves[] = {
+        "e2e4", "f7f5",
+        "e4f5", "a7a6",
+        "f5f6", "a6a5",
+        "f6g7", "b7b5",
+        NULL
+    };
+    apply_moves(&board, moves);
+
+    move_piece(&board, string_to_move("g7h8", board, WHITE), false);
+    promote_pawn(&board, 63, 'q', WHITE);
+    assert(get_bit(board.pieces[WHITE][QUEEN], 63));
+    assert(!get_bit(board.pieces[WHITE][PAWN], 63));
 }
 
 void test_knight_movement(void) {
@@ -373,6 +386,7 @@ int main(void) {
     test_pawn_capture();
     test_pawn_en_passant();
     test_pawn_en_passant_capture_removal();
+    test_pawn_promotion();
     test_knight_movement();
     test_bishop_movement();
     test_bishop_cant_move_like_rook();

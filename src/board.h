@@ -21,7 +21,7 @@
 
 typedef enum {WHITE, BLACK, COLOR_NUM} Color;
 typedef enum {PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING, ALL, PIECE_NUM, NO_PIECE = -1} PieceType;
-typedef enum {RESULT_NONE, RESULT_WHITE_WINS, RESULT_BLACK_WINS, RESULT_STALEMATE} GameResult;
+typedef enum {RESULT_NONE, RESULT_WHITE_WINS, RESULT_BLACK_WINS, RESULT_STALEMATE, RESULT_INSUFF_MATERIAL} GameResult;
 
 #define OPP_COLOR(color)    (((color) == WHITE) ? BLACK : WHITE)
 
@@ -68,6 +68,7 @@ void init_attacks(void);
 PieceType get_piece(Board* board, int sq, Color color);
 void move_piece(Board* board, Move move, bool about_to_reverse);
 void reverse_simulated_move(Board *board, Move move, PieceType target_piece);
+void promote_pawn(Board* board, int sq, char promo_char, Color color);
 bool is_enpassant(const Board* board, Move move);
 bool valid_move(Board *board, Move move);
 bool in_check(Board *board, Color color);
@@ -75,6 +76,7 @@ bool is_legal(Board* board, Move move);
 bool has_legal_moves(Board *board, Color color);
 bool is_checkmate(Board *board, Color color);
 bool is_stalemate(Board* board, Color color);
+bool insufficient_material(Board* board);
 void print_bitboard(uint64_t board);
 void print_board(Board* board);
 

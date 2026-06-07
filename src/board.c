@@ -360,6 +360,20 @@ void reverse_simulated_move(Board *board, Move move, PieceType target_piece)
     }
 }
 
+void promote_pawn(Board* board, int sq, char promo_char, Color color) {
+    remove_piece(board, sq, PAWN, color);
+
+    PieceType new_piece;
+    switch (promo_char) {
+        case 'q': new_piece = QUEEN; break;
+        case 'r': new_piece = ROOK; break;
+        case 'b': new_piece = BISHOP; break;
+        case 'n': new_piece = ROOK; break;
+        default: new_piece = QUEEN; break;
+    }
+    place_piece(board, sq, new_piece, color);
+}
+
 bool is_sliding_valid(Board *board, Move move)
 {
     if (line[move.start][move.end] == 0)
@@ -619,6 +633,33 @@ bool is_stalemate(Board* board, Color color) {
     if (in_check(board, color)) return false;
 
     return (!has_legal_moves(board, color));
+}
+
+bool insufficient_material(Board* board) {
+    PieceType non_draw_pieces[3] = {PAWN, ROOK, QUEEN};
+    for (int i = 0; i < 3; i++) {
+        int count = (__builtin_popcountll(board->pieces[WHITE][non_draw_pieces[i]]) + 
+                    __builtin_popcountll(board->pieces[BLACK][non_draw_pieces[i]]));
+        if (count > 0) return false;
+    }
+    int white_kn_count = __builtin_popcountll(board->pieces[WHITE][KNIGHT]);
+    int black_kn_count = __builtin_popcountll(board->pieces[BLACK][KNIGHT]);
+    int white_b_count = __builtin_popcountll(board->pieces[WHITE][BISHOP]);
+    int black_b_count = __builtin_popcountll(board->pieces[BLACK][BISHOP]);
+    int white_all_count = white_b_count + white_kn_count;
+    int black_all_count = black_b_count + black_kn_count;
+    if (black_all_count > 2 || white_all_count > 2) return false;
+    if (white_all_count + black_all_count == 0) return true;
+
+    if (white_kn_count == 1 && white_b_count == 0 && black_all_count == 0) return true;
+    if (black_kn_count == 1 && black_b_count == 0 && white_all_count == 0) return true;
+    if (white_b_count == 1 && white_kn_count == 0 && black_all_count == 0) return true;
+    if (black_b_count == 1 && black_kn_count == 0 && white_all_count == 0) return true;
+
+    if (white_kn_count == 2 && white_b_count == 0 && black_all_count == 0) return true;
+    if (black_kn_count == 2 && black_b_count == 0 && white_all_count == 0) return true;
+
+    return false;
 }
 
 void print_bitboard(uint64_t board) {

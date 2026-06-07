@@ -36,6 +36,23 @@ char* player_input(char* buffer, size_t size) {
     return buffer;
 }
 
+char get_promotion_choice(Color color) {
+    char buffer[16] = {0};
+    char choice;
+    printf("%s, choose which piece you want to promote to: (q/r/b/n)\n", color == WHITE ? "White" : "Black");
+    do {
+        fflush(stdout);
+        player_input(buffer, sizeof(buffer));
+
+        if (strlen(buffer) == 0) {
+            choice = '\0';
+        } else {
+            choice = tolower((unsigned char)buffer[0]);
+        }
+    } while (choice != 'q' && choice != 'r' && choice != 'b' && choice != 'n');
+    return choice;
+}
+
 static inline int file_to_int(char file) {
     return tolower(file) - 'a';
 }
