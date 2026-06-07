@@ -1,6 +1,7 @@
 #include "../src/move_parser.h"
 #include "../src/board.h"
 #include "../src/main.h"
+#include "../src/validator.h"
 #include <stdio.h>
 #include <assert.h>
 #include <stdbool.h>

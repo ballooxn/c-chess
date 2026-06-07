@@ -1,5 +1,6 @@
 #include "board.h"
 #include "move_parser.h"
+#include "validator.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -58,6 +59,11 @@ int main(void) {
         if (move.piece == PAWN && (RANK_OF(move.end) == 7 || RANK_OF(move.end) == 0)) {
             char promo_choice = get_promotion_choice(move.color);
             promote_pawn(&board, move.end, promo_choice, move.color);
+        }
+        if (player == WHITE) {
+            board.last_white_move = move;
+        } else {
+            board.last_black_move = move;
         }
 
         Color opp = (player == WHITE) ? BLACK : WHITE;
