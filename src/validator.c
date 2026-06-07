@@ -35,7 +35,6 @@ bool is_pawn_valid(Board *board, Move move, bool pawn_double_push) {
         // en passant move
         int side_dir = (FILE_OF(move.end) - FILE_OF(move.start) == 1) ? 1 : -1;
         int side_pawn = move.start + side_dir;
-        if (board->last_double_push != side_pawn) return false;
         if (!get_bit(board->pieces[OPP_COLOR(move.color)][PAWN], side_pawn)) return false;
         return true;
     }
@@ -148,7 +147,6 @@ bool is_legal(Board* board, Move move) {
     PieceType target_piece = get_piece(board, move.end, OPP_COLOR(move.color));
     OldValidations old_valids;
     old_valids.ep_sq = board->enpassant_sq;
-    old_valids.last_dbl = board->last_double_push;
     old_valids.white_kingside = board->white_can_castle_kingside;
     old_valids.white_queenside = board->white_can_castle_queenside;
     old_valids.black_kingside = board->black_can_castle_kingside;

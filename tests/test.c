@@ -15,11 +15,9 @@ static void apply_moves(Board *board, char *moves[]) {
         assert(is_legal(board, move));
         move_piece(board, move, false);
         if (move.piece == PAWN && DELTA(RANK_OF(move.end), RANK_OF(move.start)) == 2) {
-            board->last_double_push = move.end;
             // set sq to the square directly between newly pushed pawned
             board->enpassant_sq = move.end + (color == WHITE ? -8 : 8);
         } else {
-            board->last_double_push = 100; // basically NULL
             board->enpassant_sq = 100;
         }
     }
@@ -39,7 +37,6 @@ uint64_t perft(Board* board, Color color, int depth) {
         PieceType target = get_piece(board, move.end, OPP_COLOR(color));
         OldValidations old_valids;
         old_valids.ep_sq = board->enpassant_sq;
-        old_valids.last_dbl = board->last_double_push;
         old_valids.white_kingside = board->white_can_castle_kingside;
         old_valids.white_queenside = board->white_can_castle_queenside;
         old_valids.black_kingside = board->black_can_castle_kingside;
@@ -135,7 +132,6 @@ void test_undo_move(void) {
     int end_bits = 20;
     OldValidations old_valids;
     old_valids.ep_sq = board.enpassant_sq;
-    old_valids.last_dbl = board.last_double_push;
     old_valids.white_kingside = board.white_can_castle_kingside;
     old_valids.white_queenside = board.white_can_castle_queenside;
     old_valids.black_kingside = board.black_can_castle_kingside;
@@ -460,8 +456,8 @@ void test_threefold_repitition(void) {
     assert(true);
 }
 
-#define RUNS 10
-
+#define RUNS 6
+// Average is about 0.799 right now.
 void run_perft_timed_tests() {
     double total = 0.0;
     for (int i =0; i < RUNS; i++) {

@@ -75,7 +75,6 @@ typedef struct {
 } MoveList;
 
 typedef struct {
-    int last_dbl;
     int ep_sq;
     bool white_kingside;
     bool white_queenside;

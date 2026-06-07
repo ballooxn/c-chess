@@ -74,7 +74,6 @@ Board init_board(void)
     board.white_can_castle_queenside = true;
     board.black_can_castle_kingside= true;
     board.black_can_castle_queenside = true;
-    board.last_double_push = 100; //basically NULL
     board.enpassant_sq = 100;
     return board;
 }
@@ -256,7 +255,7 @@ bool is_enpassant(const Board* board, Move move) {
     int side_pawn_sq = move.start + (file_diff > 0 ? 1 : -1);
     if (!get_bit(board->pieces[OPP_COLOR(move.color)][PAWN], side_pawn_sq)) return false;
 
-    return board->last_double_push == side_pawn_sq;
+    return true;
 }
 
 static void move_castle_rook(Board *board, Move king_move, bool reversing) {
@@ -296,10 +295,8 @@ void move_piece(Board *board, Move move, bool about_to_reverse)
     }
 
     if (move.piece == PAWN && DELTA(RANK_OF(move.end), RANK_OF(move.start)) == 2) {
-        board->last_double_push = move.end;
         board->enpassant_sq = move.end + (move.color == WHITE ? -8 : 8);
     } else {
-        board->last_double_push = 100;
         board->enpassant_sq = 100;
     }
 
@@ -341,13 +338,11 @@ void reverse_simulated_move(Board *board, Move move, PieceType target_piece, Old
     }
 
     if (move.piece == PAWN && move.end == old_valids->ep_sq &&
-         abs(FILE_OF(move.end) - FILE_OF(move.start)) == 1 &&
-         old_valids->last_dbl == move.start + (FILE_OF(move.end) > FILE_OF(move.start) ? 1 : -1))  {
+         abs(FILE_OF(move.end) - FILE_OF(move.start)) == 1)  {
         int side_dir = (FILE_OF(move.end) > FILE_OF(move.start)) ? 1 : -1;
         int side_pawn = move.start + side_dir;
         place_piece(board, side_pawn, PAWN, opp);
     }
-    board->last_double_push = old_valids->last_dbl;
     board->enpassant_sq = old_valids->ep_sq;
     board->white_can_castle_kingside = old_valids->white_kingside;
     board->white_can_castle_queenside = old_valids->white_queenside;
