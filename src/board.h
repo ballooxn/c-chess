@@ -64,7 +64,7 @@ typedef struct {
     PieceType captured_piece;
 } UndoState;
 
-#define MAX_DEPTH 200 // max moves in game
+#define MAX_MOVE_HISTORY 200 // max moves in game
 
 typedef struct {
     uint64_t pieces[COLOR_NUM][PIECE_NUM];  // one for each piece/all pieces
@@ -79,7 +79,7 @@ typedef struct {
     Move second_last_black_move;
     int repetition_count;
 
-    UndoState history[MAX_DEPTH];
+    UndoState history[MAX_MOVE_HISTORY];
     int history_count;
 } Board;
 
