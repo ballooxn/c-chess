@@ -50,6 +50,9 @@ typedef struct {
     int end;
     PieceType piece;
     Color color;
+    PieceType engine_promotion;
+    bool is_castling;
+    bool is_enpassant;
 } Move;
 
 typedef struct {
@@ -91,12 +94,12 @@ Board init_board(void);
 void init_attacks(void);
 PieceType get_piece(Board* board, int sq, Color color);
 bool is_castle_move(Move move);
+bool is_enpassant(const Board* board, Move move);
 void place_piece(Board *board, int sq, PieceType pt, Color color);
 void remove_piece(Board *board, int sq, PieceType pt, Color color);
 void move_piece(Board* board, Move move);
 void reverse_move(Board *board, Move move);
 void promote_pawn(Board* board, int sq, char promo_char, Color color);
-bool is_enpassant(const Board* board, Move move);
 void generate_legal_moves(Board* board, Color color, MoveList* list);
 bool has_legal_moves(Board *board, Color color);
 bool is_checkmate(Board *board, Color color);

@@ -6,3 +6,7 @@ To-do:
 50 move rule
 3 move repitition
 insufficient checkmating material
+
+ideas:
+make move struct just integers (prob wont affect much in terms of performance)
+add is_castling and is_enpassant to the move struct, so only have to do those checks once.

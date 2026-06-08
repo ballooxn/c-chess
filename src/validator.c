@@ -31,7 +31,7 @@ bool is_pawn_valid(Board *board, Move move, bool pawn_double_push) {
         if (RANK_OF(move.start) != home_rank) return false;
         return true;
     }
-    if (is_enpassant(board, move)) {
+    if (move.is_enpassant) {
         // en passant move
         int side_dir = (FILE_OF(move.end) - FILE_OF(move.start) == 1) ? 1 : -1;
         int side_pawn = move.start + side_dir;
@@ -155,7 +155,7 @@ bool is_legal(Board* board, Move move) {
     if (move.piece == NO_PIECE)
         return false;
 
-    if (move.piece == KING && is_castle_move(move)) {
+    if (move.piece == KING && move.is_castling) {
         bool kingside = FILE_OF(move.end) == 6;
         return can_castle(board, move.color, kingside);
     }

@@ -1,6 +1,7 @@
 #include "board.h"
 #include "move_parser.h"
 #include "validator.h"
+#include "engine.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -30,40 +31,55 @@ int main(void) {
     init_attacks();
 
     GameResult winner = RESULT_NONE;
-    Color player = BLACK;
+    Color player;
 
+    bool play_engine = get_engine_choice();
+
+    if (play_engine) {
+        player = get_color_choice();
+    } else {
+        player = WHITE;
+    }
+
+    Color current_color = BLACK;
     do {
-        player = (player == BLACK) ? WHITE : BLACK;
-        print_board(&board);
-        switch (player) {
-            case WHITE: printf("White, "); break;
-            case BLACK: printf("Black, "); break;
-            default: break;
-        }
-        puts("please choose a start and end location");
         Move move;
-        bool is_valid = false;
-        do {
-            char buffer[5] = "";
-            get_player_move(buffer, sizeof(buffer));
-            move = string_to_move(buffer, board, player);
-            is_valid = is_legal(&board, move);
-            if (is_valid) {
-                puts("VALID MOVE");
-            } else {
-                puts("NOT VALID!!!");
+        printf("%i\n", current_color);
+        current_color = OPP_COLOR(current_color);
+        printf("%i After \n", current_color);
+        print_board(&board);
+        if (current_color == player || play_engine == false) {
+            switch (current_color) {
+                case WHITE: printf("White, "); break;
+                case BLACK: printf("Black, "); break;
+                default: break;
             }
-        } while (!is_valid);
-        move_piece(&board, move);
-        // pawn promotion
-        if (move.piece == PAWN && (RANK_OF(move.end) == 7 || RANK_OF(move.end) == 0)) {
-            char promo_choice = get_promotion_choice(move.color);
-            promote_pawn(&board, move.end, promo_choice, move.color);
-        }
-        if (player == WHITE) {
-            board.last_white_move = move;
+            puts("please choose a start and end location");
+            
+            bool is_valid = false;
+            do {
+                char buffer[5] = "";
+                get_player_move(buffer, sizeof(buffer));
+                move = string_to_move(buffer, board, current_color);
+                is_valid = is_legal(&board, move);
+                if (is_valid) {
+                    puts("VALID MOVE");
+                } else {
+                    puts("NOT VALID!!!");
+                }
+            } while (!is_valid);
+            move_piece(&board, move);
+            // pawn promotion
+            if (move.piece == PAWN && (RANK_OF(move.end) == 7 || RANK_OF(move.end) == 0)) {
+                char promo_choice = get_promotion_choice(move.color);
+                promote_pawn(&board, move.end, promo_choice, move.color);
+            }
         } else {
-            board.last_black_move = move;
+            move = engine_move(&board, current_color);
+            move_piece(&board, move);
+            if (move.piece == PAWN && (RANK_OF(move.end) == 7 || RANK_OF(move.end) == 0)) {
+                promote_pawn(&board, move.end, move.engine_promotion, move.color);
+            }
         }
 
         Color opp = (player == WHITE) ? BLACK : WHITE;

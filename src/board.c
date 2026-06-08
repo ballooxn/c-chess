@@ -291,16 +291,14 @@ void move_piece(Board *board, Move move)
     if (target_piece != NO_PIECE) {
         remove_piece(board, move.end, target_piece, opp);
     }
-    if (is_enpassant(board, move)) {
+    if (move.is_enpassant) {
         int side_dir = (FILE_OF(move.end) > FILE_OF(move.start)) ? 1 : -1;
         int side_pawn = move.start + side_dir;
         remove_piece(board, side_pawn, PAWN, opp);
     }
     place_piece(board, move.end, move.piece, move.color);
 
-    if (is_castle_move(move)) {
-        move_castle_rook(board, move, false);
-    }
+    if (move.is_castling) move_castle_rook(board, move, false);
 
     if (move.piece == PAWN && DELTA(RANK_OF(move.end), RANK_OF(move.start)) == 2) {
         board->enpassant_sq = move.end + (move.color == WHITE ? -8 : 8);
@@ -344,9 +342,7 @@ void reverse_move(Board *board, Move move) {
         place_piece(board, move.end, target_piece, opp);
     }
     
-    if (is_castle_move(move)) {
-        move_castle_rook(board, move, true);
-    }
+    if (move.is_castling) move_castle_rook(board, move, true); 
 
     if (move.piece == PAWN && move.end == board->history[count].enpassant_sq &&
         abs(FILE_OF(move.end) - FILE_OF(move.start)) == 1)  {
@@ -504,7 +500,10 @@ void generate_legal_moves(Board* board, Color color, MoveList* list) {
             int possible_end_sqs[64];
             int end_sq_count = generators[pt](board, color, sq, possible_end_sqs, pt);
             for (int i = 0; i < end_sq_count; i++) {
-                Move move = {.start = sq, .end = possible_end_sqs[i], .piece = pt, .color = color};
+                Move move = {.start = sq, .end = possible_end_sqs[i], .piece = pt, .color = color, 
+                            .engine_promotion = NO_PIECE, .is_castling = false, .is_enpassant = false};
+                move.is_castling = is_castle_move(move);
+                move.is_enpassant = is_enpassant(board, move);
                 if (is_legal(board, move)) {
                     list->moves[list->count++] = move;
                 }
@@ -525,7 +524,11 @@ bool has_legal_moves(Board *board, Color color) {
             int possible_end_sqs[64];
             int count = generators[pt](board, color, sq, possible_end_sqs, pt);
             for (int i = 0; i < count; i++) {
-                Move temp_move = {.start = sq, .end = possible_end_sqs[i], .piece = pt, .color = color};
+
+                Move temp_move = {.start = sq, .end = possible_end_sqs[i], .piece = pt, .color = color,
+                                  .engine_promotion = NO_PIECE, .is_castling = false, .is_enpassant = false};
+                temp_move.is_castling = is_castle_move(temp_move);
+                temp_move.is_enpassant = is_enpassant(board, temp_move);
                 if (is_legal(board, temp_move)) return true;
             }
         }

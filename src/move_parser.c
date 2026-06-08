@@ -53,6 +53,40 @@ char get_promotion_choice(Color color) {
     return choice;
 }
 
+bool get_engine_choice(void) {
+    char buffer[16] = {0};
+    char choice;
+    puts("Do you want to play against the engine? (y/n)");
+    do {
+        fflush(stdout);
+        player_input(buffer, sizeof(buffer));
+
+        if (strlen(buffer) == 0) {
+            choice = '\0';
+        } else {
+            choice = tolower((unsigned char)buffer[0]);
+        }
+    } while (choice != 'y' && choice != 'n');
+    return (choice == 'y') ? true : false;
+}
+
+Color get_color_choice(void) {
+    char buffer[16] = {0};
+    char choice;
+    puts("Which color do you want to play? (w/b)");
+    do {
+        fflush(stdout);
+        player_input(buffer, sizeof(buffer));
+
+        if (strlen(buffer) == 0) {
+            choice = '\0';
+        } else {
+            choice = tolower((unsigned char)buffer[0]);
+        }
+    } while (choice != 'w' && choice != 'b');
+    return (choice == 'w') ? WHITE : BLACK;
+}
+
 static inline int file_to_int(char file) {
     return tolower(file) - 'a';
 }
@@ -71,6 +105,8 @@ Move string_to_move(char* string, Board board, Color color) {
     int start = pos_to_int(string[1], string[0]);
     int end = pos_to_int(string[3], string[2]);
     char piece = get_piece(&board, start, color);
-    Move move = {.start = start, .end = end, .piece = piece, .color = color};
+    Move move = {.start = start, .end = end, .piece = piece, .color = color, .engine_promotion = NO_PIECE, .is_castling = false};
+    move.is_castling = is_castle_move(move);
+    move.is_enpassant = is_enpassant(&board, move);
     return move;
 }
