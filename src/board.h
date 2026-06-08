@@ -100,7 +100,7 @@ void remove_piece(Board *board, int sq, PieceType pt, Color color);
 void move_piece(Board* board, Move move);
 void reverse_move(Board *board, Move move);
 void promote_pawn(Board* board, int sq, char promo_char, Color color);
-void generate_legal_moves(Board* board, Color color, MoveList* list);
+void generate_legal_moves(Board* board, Color color, MoveList* list, bool filter_captures);
 bool has_legal_moves(Board *board, Color color);
 bool is_checkmate(Board *board, Color color);
 bool is_stalemate(Board* board, Color color);

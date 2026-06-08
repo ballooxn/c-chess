@@ -486,7 +486,7 @@ MoveGenFunc generators[6] = {
 };
 
 
-void generate_legal_moves(Board* board, Color color, MoveList* list) {
+void generate_legal_moves(Board* board, Color color, MoveList* list, bool filter_captures) {
     list->count = 0;
     
     for (PieceType pt = PAWN; pt <= KING; pt++) {
@@ -500,6 +500,7 @@ void generate_legal_moves(Board* board, Color color, MoveList* list) {
             int possible_end_sqs[64];
             int end_sq_count = generators[pt](board, color, sq, possible_end_sqs, pt);
             for (int i = 0; i < end_sq_count; i++) {
+                if (filter_captures && !get_bit(board->occupied, possible_end_sqs[i])) continue;
                 Move move = {.start = sq, .end = possible_end_sqs[i], .piece = pt, .color = color, 
                             .engine_promotion = NO_PIECE, .is_castling = false, .is_enpassant = false};
                 move.is_castling = is_castle_move(move);

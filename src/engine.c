@@ -29,11 +29,62 @@ int evaluate(Board *board, Color engine_color) {
     return score;
 }
 
-int search(Board *board, int depth, Color color, Color engine_color, bool maximizing, int alpha, int beta) {
-    if (depth == 0) return evaluate(board, engine_color);
+int quiescence(Board *board, Color color, Color engine_color, bool maximizing, int alpha, int beta) {
+    int stand_pat = evaluate(board, engine_color);
 
+    if (maximizing) {
+        if (stand_pat > alpha) alpha = stand_pat;
+        if (alpha >= beta) return stand_pat;
+
+        int best_eval = stand_pat;
+
+        MoveList capture_list;
+        generate_legal_moves(board, color, &capture_list, true);
+
+        for (int i = 0; i < capture_list.count; i++) {
+            Move move = capture_list.moves[i];
+            move_piece(board, move);
+            int eval = quiescence(board, OPP_COLOR(color), engine_color, false, alpha, beta);
+            reverse_move(board, move);
+
+            if (eval > best_eval) best_eval = eval;
+            if (best_eval > alpha) alpha = best_eval;
+            if (alpha >= beta) break;
+        }
+        return best_eval;
+    } else {
+        if (stand_pat < beta) beta = stand_pat;
+        if (alpha >= beta) return stand_pat;
+
+        int best_eval = stand_pat;
+
+        MoveList capture_list;
+        generate_legal_moves(board, color, &capture_list, true);
+
+        for (int i = 0; i < capture_list.count; i++) {
+            Move move = capture_list.moves[i];
+            move_piece(board, move);
+            int eval = quiescence(board, OPP_COLOR(color), engine_color, true, alpha, beta);
+            reverse_move(board, move);
+
+            if (eval < best_eval) best_eval = eval;
+            if (best_eval < beta) beta = best_eval;
+            if (alpha >= beta) break;
+        }
+        return stand_pat;
+    }
+}
+
+int search(Board *board, int depth, Color color, Color engine_color, bool maximizing, int alpha, int beta) {
+    if (depth == 0) {
+        if (in_check(board, color)) {
+            depth++;
+        } else {
+            return quiescence(board, color, engine_color, maximizing, alpha, beta);
+        }
+    }
     MoveList move_list;
-    generate_legal_moves(board, color, &move_list);
+    generate_legal_moves(board, color, &move_list, false);
 
     if (move_list.count == 0) {
         if (in_check(board, color)) {
@@ -50,8 +101,8 @@ int search(Board *board, int depth, Color color, Color engine_color, bool maximi
             move_piece(board, move);
             int eval = search(board, depth - 1, OPP_COLOR(color), engine_color, false, alpha, beta);
             reverse_move(board, move);
-            if (eval > best_eval) best_eval = eval;
 
+            if (eval > best_eval) best_eval = eval;
             if (best_eval > alpha) alpha = best_eval;
             if (alpha >= beta) break;
         }
@@ -63,8 +114,8 @@ int search(Board *board, int depth, Color color, Color engine_color, bool maximi
             move_piece(board, move);
             int eval = search(board, depth - 1, OPP_COLOR(color), engine_color, true, alpha, beta);
             reverse_move(board, move);
-            if (eval < best_eval) best_eval = eval;
 
+            if (eval < best_eval) best_eval = eval;
             if (best_eval < beta) beta = best_eval;
             if (alpha >= beta) break;
         }
@@ -76,7 +127,7 @@ Move engine_move(Board *board, Color color) {
     // Dont forget to tack on the promotion piece to the Move struct
     // and is_castling and is_enpassant
     MoveList move_list;
-    generate_legal_moves(board, color, &move_list);
+    generate_legal_moves(board, color, &move_list, false);
 
     Move best_move = move_list.moves[0];
     int best_eval = -INF;

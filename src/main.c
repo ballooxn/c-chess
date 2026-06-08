@@ -84,7 +84,7 @@ int main(void) {
 
         Color opp = (current_color == WHITE) ? BLACK : WHITE;
         if (is_checkmate(&board, opp)) {
-            winner = (player == WHITE) ? RESULT_WHITE_WINS : RESULT_BLACK_WINS;
+            winner = (current_color == WHITE) ? RESULT_WHITE_WINS : RESULT_BLACK_WINS;
         } else if (is_stalemate(&board, opp)) {
             winner = RESULT_STALEMATE;
         } else if (insufficient_material(&board)) {

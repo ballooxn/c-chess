@@ -27,7 +27,7 @@ uint64_t perft(Board* board, Color color, int depth) {
     if (depth == 0) return 1;
 
     MoveList list;
-    generate_legal_moves(board, color, &list);
+    generate_legal_moves(board, color, &list, false);
 
     uint64_t nodes = 0;
 
