@@ -53,18 +53,31 @@ typedef struct {
 } Move;
 
 typedef struct {
+    int enpassant_sq;
+    bool white_can_castle_kingside;
+    bool white_can_castle_queenside;
+    bool black_can_castle_kingside;
+    bool black_can_castle_queenside;
+    PieceType captured_piece;
+} UndoState;
+
+#define MAX_DEPTH 200 // max moves in game
+
+typedef struct {
     uint64_t pieces[COLOR_NUM][PIECE_NUM];  // one for each piece/all pieces
     uint64_t occupied;
     bool white_can_castle_kingside;
     bool white_can_castle_queenside;
     bool black_can_castle_kingside;
     bool black_can_castle_queenside;
-    int last_double_push;
     int enpassant_sq;
     Move last_white_move;
     Move last_black_move;
     Move second_last_black_move;
     int repetition_count;
+
+    UndoState history[MAX_DEPTH];
+    int history_count;
 } Board;
 
 #define MAX_MOVES 256
@@ -74,22 +87,14 @@ typedef struct {
     int count;
 } MoveList;
 
-typedef struct {
-    int ep_sq;
-    bool white_kingside;
-    bool white_queenside;
-    bool black_kingside;
-    bool black_queenside;
-} OldValidations;
-
 Board init_board(void);
 void init_attacks(void);
 PieceType get_piece(Board* board, int sq, Color color);
 bool is_castle_move(Move move);
 void place_piece(Board *board, int sq, PieceType pt, Color color);
 void remove_piece(Board *board, int sq, PieceType pt, Color color);
-void move_piece(Board* board, Move move, bool about_to_reverse);
-void reverse_simulated_move(Board *board, Move move, PieceType target_piece, OldValidations *old_valids);
+void move_piece(Board* board, Move move);
+void reverse_move(Board *board, Move move);
 void promote_pawn(Board* board, int sq, char promo_char, Color color);
 bool is_enpassant(const Board* board, Move move);
 void generate_legal_moves(Board* board, Color color, MoveList* list);

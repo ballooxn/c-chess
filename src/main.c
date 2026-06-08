@@ -54,7 +54,7 @@ int main(void) {
                 puts("NOT VALID!!!");
             }
         } while (!is_valid);
-        move_piece(&board, move, false);
+        move_piece(&board, move);
         // pawn promotion
         if (move.piece == PAWN && (RANK_OF(move.end) == 7 || RANK_OF(move.end) == 0)) {
             char promo_choice = get_promotion_choice(move.color);
@@ -76,11 +76,9 @@ int main(void) {
         }
 
         if (move.piece == PAWN && DELTA(RANK_OF(move.end), RANK_OF(move.start)) == 2) {
-            board.last_double_push = move.end;
             // set sq to the square directly between newly pushed pawned
             board.enpassant_sq = move.end + (player == WHITE ? -8 : 8);
         } else {
-            board.last_double_push = 100; // basically NULL
             board.enpassant_sq = 100;
         }
     } while (winner == RESULT_NONE);

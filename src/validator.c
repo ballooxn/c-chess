@@ -79,25 +79,46 @@ bool valid_move(Board *board, Move move) {
     return false;
 }
 
-bool in_check(Board *board, Color color) {
-    int king_sq = __builtin_ctzll(board->pieces[color][KING]);
-    Color opp = OPP_COLOR(color);
-    uint64_t bb = board->pieces[opp][ALL];
-    while (bb)
-    {
-        int sq = __builtin_ctzll(bb);
-        bb &= bb - 1;
-        PieceType piece_type = get_piece(board, sq, opp);
-        Move temp_move = {.start = sq, .end = king_sq, .piece = piece_type, .color = opp};
+// instead of checking each piece to see if it can attack the king
+// look at each attack bitboard for the kings square
+// and see if the "superking" would be able to attack any enemy pieces
+// if yes, then that enemy piece can attack the king, so we are attacked.
 
-        if (piece_type == KING || piece_type == NO_PIECE)
-            continue;
+int directions[8] = {9, 7, -7, -9, 8, -8, 1, -1};
+#define DIR_COUNT 8
 
-        if (valid_move(board, temp_move)) {
-            return true;
+bool is_square_attacked(Board *board, int sq, Color attacker_color) {
+    if (knight_attacks[sq] & board->pieces[attacker_color][KNIGHT]) return true;
+    if (king_attacks[sq] & board->pieces[attacker_color][KING]) return true;
+    
+    uint64_t pawn_attacks = (attacker_color == WHITE) ? black_pawn_attacks[sq] : white_pawn_attacks[sq];
+    if (pawn_attacks & board->pieces[attacker_color][PAWN]) return true;
+
+    for (int i = 0; i < DIR_COUNT; i++) {
+        PieceType target_piece = BISHOP;
+        if (i >= 4) target_piece = ROOK;
+        int current_sq = sq;
+        while (1) {
+            int new_sq = current_sq + directions[i];
+            if (new_sq < 0 || new_sq > 63) break;
+
+            if (DELTA(FILE_OF(new_sq), FILE_OF(current_sq)) > 1) break;
+            
+            if (get_bit(board->occupied, new_sq)) {
+                if (get_bit(board->pieces[attacker_color][target_piece], new_sq) || 
+                    get_bit(board->pieces[attacker_color][QUEEN], new_sq)) {
+                    return true;
+                } else break;
+            }
+            current_sq = new_sq;
         }
     }
     return false;
+}
+
+bool in_check(Board *board, Color color) {
+    int king_sq = __builtin_ctzll(board->pieces[color][KING]);
+    return is_square_attacked(board, king_sq, OPP_COLOR(color));
 }
 
 bool can_castle(Board* board, Color color, bool kingside) {
@@ -119,10 +140,7 @@ bool can_castle(Board* board, Color color, bool kingside) {
         if (get_bit(board->occupied, sq)) return false;
         // on queenside castle, don't loop through the B file (king wont be touching it)
         if (!kingside && DELTA(rook_start, sq) == 1) continue;
-        Board temp = *board;
-        remove_piece(&temp, king_start, KING, color);
-        place_piece(&temp, sq, KING, color);
-        if (in_check(&temp, color)) return false;
+        if (is_square_attacked(board, sq, OPP_COLOR(color))) return false;
     }
     return true;
 }
@@ -144,16 +162,9 @@ bool is_legal(Board* board, Move move) {
 
     if (!valid_move(board, move))
         return false;
-    PieceType target_piece = get_piece(board, move.end, OPP_COLOR(move.color));
-    OldValidations old_valids;
-    old_valids.ep_sq = board->enpassant_sq;
-    old_valids.white_kingside = board->white_can_castle_kingside;
-    old_valids.white_queenside = board->white_can_castle_queenside;
-    old_valids.black_kingside = board->black_can_castle_kingside;
-    old_valids.black_queenside = board->black_can_castle_queenside;
 
-    move_piece(board, move, true);
+    move_piece(board, move);
     bool is_in_check = in_check(board, move.color);
-    reverse_simulated_move(board, move, target_piece, &old_valids);
+    reverse_move(board, move);
     return !is_in_check;
 }

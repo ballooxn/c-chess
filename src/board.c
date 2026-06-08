@@ -75,6 +75,7 @@ Board init_board(void)
     board.black_can_castle_kingside= true;
     board.black_can_castle_queenside = true;
     board.enpassant_sq = 100;
+    board.history_count = 0;
     return board;
 }
 
@@ -273,14 +274,21 @@ static void move_castle_rook(Board *board, Move king_move, bool reversing) {
     }
 }
 
-void move_piece(Board *board, Move move, bool about_to_reverse)
+void move_piece(Board *board, Move move)
 {
+    int count = board->history_count;
+    board->history[count].enpassant_sq = board->enpassant_sq;
+    board->history[count].white_can_castle_kingside = board->white_can_castle_kingside;
+    board->history[count].white_can_castle_queenside = board->white_can_castle_queenside;
+    board->history[count].black_can_castle_kingside = board->black_can_castle_kingside;
+    board->history[count].black_can_castle_queenside = board->black_can_castle_queenside;
+    
     Color opp = OPP_COLOR(move.color);
     PieceType target_piece = get_piece(board, move.end, opp);
+    board->history[count].captured_piece = target_piece;
 
     remove_piece(board, move.start, move.piece, move.color);
-    if (target_piece != NO_PIECE)
-    {
+    if (target_piece != NO_PIECE) {
         remove_piece(board, move.end, target_piece, opp);
     }
     if (is_enpassant(board, move)) {
@@ -300,54 +308,57 @@ void move_piece(Board *board, Move move, bool about_to_reverse)
         board->enpassant_sq = 100;
     }
 
-    if (!about_to_reverse) {
-        if (move.piece == KING) {
-            if (move.color == WHITE) {
-                board->white_can_castle_kingside  = false;
-                board->white_can_castle_queenside = false;
-            } else {
-                board->black_can_castle_kingside  = false;
-                board->black_can_castle_queenside = false;
-            }
-        }
-
-        if (move.piece == ROOK) {
-            if (move.color == WHITE) {
-                if (move.start == H1) board->white_can_castle_kingside  = false;
-                if (move.start == A1) board->white_can_castle_queenside = false;
-            } else {
-                if (move.start == H8) board->black_can_castle_kingside  = false;
-                if (move.start == A8) board->black_can_castle_queenside = false;
-            }
+    if (move.piece == KING) {
+        if (move.color == WHITE) {
+            board->white_can_castle_kingside  = false;
+            board->white_can_castle_queenside = false;
+        } else {
+            board->black_can_castle_kingside  = false;
+            board->black_can_castle_queenside = false;
         }
     }
+    if (move.piece == ROOK) {
+        if (move.color == WHITE) {
+            if (move.start == H1) board->white_can_castle_kingside  = false;
+            if (move.start == A1) board->white_can_castle_queenside = false;
+        } else {
+            if (move.start == H8) board->black_can_castle_kingside  = false;
+            if (move.start == A8) board->black_can_castle_queenside = false;
+        }
+    }
+    board->history_count++;
 }
 
-void reverse_simulated_move(Board *board, Move move, PieceType target_piece, OldValidations *old_valids) {
+void reverse_move(Board *board, Move move) {
+    board->history_count--;
+    int count = board->history_count;
+    
     Color opp = OPP_COLOR(move.color);
 
     remove_piece(board, move.end, move.piece, move.color);
+    place_piece(board, move.start, move.piece, move.color);
+
+    PieceType target_piece = board->history[count].captured_piece;
     if (target_piece != NO_PIECE)
     {
         place_piece(board, move.end, target_piece, opp);
     }
-    place_piece(board, move.start, move.piece, move.color);
     
     if (is_castle_move(move)) {
         move_castle_rook(board, move, true);
     }
 
-    if (move.piece == PAWN && move.end == old_valids->ep_sq &&
-         abs(FILE_OF(move.end) - FILE_OF(move.start)) == 1)  {
+    if (move.piece == PAWN && move.end == board->history[count].enpassant_sq &&
+        abs(FILE_OF(move.end) - FILE_OF(move.start)) == 1)  {
         int side_dir = (FILE_OF(move.end) > FILE_OF(move.start)) ? 1 : -1;
         int side_pawn = move.start + side_dir;
         place_piece(board, side_pawn, PAWN, opp);
     }
-    board->enpassant_sq = old_valids->ep_sq;
-    board->white_can_castle_kingside = old_valids->white_kingside;
-    board->white_can_castle_queenside = old_valids->white_queenside;
-    board->black_can_castle_kingside = old_valids->black_kingside;
-    board->black_can_castle_queenside = old_valids->black_queenside;
+    board->enpassant_sq = board->history[count].enpassant_sq;
+    board->white_can_castle_kingside = board->history[count].white_can_castle_kingside;
+    board->white_can_castle_queenside = board->history[count].white_can_castle_queenside;
+    board->black_can_castle_kingside = board->history[count].black_can_castle_kingside;
+    board->black_can_castle_queenside = board->history[count].black_can_castle_queenside;
 }
 
 void promote_pawn(Board* board, int sq, char promo_char, Color color) {

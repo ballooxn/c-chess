@@ -13,7 +13,7 @@ static void apply_moves(Board *board, char *moves[]) {
         int color = (i % 2 == 0) ? WHITE : BLACK;
         Move move = string_to_move(moves[i], *board, color);
         assert(is_legal(board, move));
-        move_piece(board, move, false);
+        move_piece(board, move);
         if (move.piece == PAWN && DELTA(RANK_OF(move.end), RANK_OF(move.start)) == 2) {
             // set sq to the square directly between newly pushed pawned
             board->enpassant_sq = move.end + (color == WHITE ? -8 : 8);
@@ -33,19 +33,11 @@ uint64_t perft(Board* board, Color color, int depth) {
 
     for (int i = 0; i < list.count; i++) {
         Move move = list.moves[i];
-
-        PieceType target = get_piece(board, move.end, OPP_COLOR(color));
-        OldValidations old_valids;
-        old_valids.ep_sq = board->enpassant_sq;
-        old_valids.white_kingside = board->white_can_castle_kingside;
-        old_valids.white_queenside = board->white_can_castle_queenside;
-        old_valids.black_kingside = board->black_can_castle_kingside;
-        old_valids.black_queenside = board->black_can_castle_queenside;
-        move_piece(board, move, false);
+        move_piece(board, move);
 
         nodes += perft(board, OPP_COLOR(color), depth - 1);
         
-        reverse_simulated_move(board, move, target, &old_valids);
+        reverse_move(board, move);
     }
 
     return nodes;
@@ -119,7 +111,7 @@ void test_move_piece(void) {
     Move move = string_to_move("e2e3", board, WHITE);
     int start_bits = 12;
     int end_bits = 20;
-    move_piece(&board, move, false);
+    move_piece(&board, move);
     assert(!get_bit(board.occupied, start_bits) && get_bit(board.occupied, end_bits) &&
             !get_bit(board.pieces[WHITE][ALL], start_bits) && get_bit(board.pieces[WHITE][ALL], end_bits) &&
             !get_bit(board.pieces[WHITE][PAWN], start_bits) && get_bit(board.pieces[WHITE][ALL], end_bits));
@@ -130,14 +122,8 @@ void test_undo_move(void) {
     Move move = string_to_move("e2e3", board, WHITE);
     int start_bits = 12;
     int end_bits = 20;
-    OldValidations old_valids;
-    old_valids.ep_sq = board.enpassant_sq;
-    old_valids.white_kingside = board.white_can_castle_kingside;
-    old_valids.white_queenside = board.white_can_castle_queenside;
-    old_valids.black_kingside = board.black_can_castle_kingside;
-    old_valids.black_queenside = board.black_can_castle_queenside;
-    move_piece(&board, move, true);
-    reverse_simulated_move(&board, move, NO_PIECE, &old_valids);
+    move_piece(&board, move);
+    reverse_move(&board, move);
     assert(!get_bit(board.occupied, end_bits) && get_bit(board.occupied, start_bits) &&
             !get_bit(board.pieces[WHITE][ALL], end_bits) && get_bit(board.pieces[WHITE][ALL], start_bits) &&
             !get_bit(board.pieces[WHITE][PAWN], end_bits) && get_bit(board.pieces[WHITE][ALL], start_bits));
@@ -194,7 +180,7 @@ void test_pawn_en_passant_capture_removal(void) {
     Move ep_move = string_to_move("e5f6", board, WHITE);
     assert(is_legal(&board, ep_move));
 
-    move_piece(&board, ep_move, false);
+    move_piece(&board, ep_move);
     assert(!get_bit(board.pieces[BLACK][PAWN], TO_BITS(4, 4))); // d5
 }
 
@@ -209,7 +195,7 @@ void test_pawn_promotion(void) {
     };
     apply_moves(&board, moves);
 
-    move_piece(&board, string_to_move("g7h8", board, WHITE), false);
+    move_piece(&board, string_to_move("g7h8", board, WHITE));
     promote_pawn(&board, 63, 'q', WHITE);
     assert(get_bit(board.pieces[WHITE][QUEEN], 63));
     assert(!get_bit(board.pieces[WHITE][PAWN], 63));
@@ -275,7 +261,7 @@ void test_king_castle_kingside(void) {
     };
     apply_moves(&board, moves);
     assert(is_legal(&board, string_to_move("e1g1", board, WHITE)));
-    move_piece(&board, string_to_move("e1g1", board, WHITE), false);
+    move_piece(&board, string_to_move("e1g1", board, WHITE));
     assert(get_bit(board.pieces[WHITE][ROOK], 5));
 }
 
@@ -290,7 +276,7 @@ void test_king_castle_queenside(void) {
     };
     apply_moves(&board, moves);
     assert(is_legal(&board, string_to_move("e1c1", board, WHITE)));
-    move_piece(&board, string_to_move("e1c1", board, WHITE), false);
+    move_piece(&board, string_to_move("e1c1", board, WHITE));
     assert(get_bit(board.pieces[WHITE][ROOK], 3));
 }
 
@@ -457,7 +443,7 @@ void test_threefold_repitition(void) {
 }
 
 #define RUNS 6
-// Average is about 0.799 right now.
+// Average is about 0.75 right now.
 void run_perft_timed_tests() {
     double total = 0.0;
     for (int i =0; i < RUNS; i++) {
