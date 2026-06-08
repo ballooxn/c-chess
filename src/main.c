@@ -82,7 +82,7 @@ int main(void) {
             }
         }
 
-        Color opp = (player == WHITE) ? BLACK : WHITE;
+        Color opp = (current_color == WHITE) ? BLACK : WHITE;
         if (is_checkmate(&board, opp)) {
             winner = (player == WHITE) ? RESULT_WHITE_WINS : RESULT_BLACK_WINS;
         } else if (is_stalemate(&board, opp)) {
@@ -91,12 +91,6 @@ int main(void) {
             winner = RESULT_INSUFF_MATERIAL;
         }
 
-        if (move.piece == PAWN && DELTA(RANK_OF(move.end), RANK_OF(move.start)) == 2) {
-            // set sq to the square directly between newly pushed pawned
-            board.enpassant_sq = move.end + (player == WHITE ? -8 : 8);
-        } else {
-            board.enpassant_sq = 100;
-        }
     } while (winner == RESULT_NONE);
     if (winner == RESULT_STALEMATE) {
         puts("Stalemate! Nobody wins!");

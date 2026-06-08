@@ -442,7 +442,7 @@ void test_threefold_repitition(void) {
     assert(true);
 }
 
-#define RUNS 6
+#define RUNS 10
 // Average is about 0.75 right now.
 void run_perft_timed_tests() {
     double total = 0.0;
