@@ -90,6 +90,7 @@ typedef struct {
     int count;
 } MoveList;
 
+
 Board init_board(void);
 void init_attacks(void);
 PieceType get_piece(Board* board, int sq, Color color);

@@ -44,10 +44,8 @@ int main(void) {
     Color current_color = BLACK;
     do {
         Move move;
-        printf("%i\n", current_color);
         current_color = OPP_COLOR(current_color);
-        printf("%i After \n", current_color);
-        print_board(&board);
+        if (current_color == player) print_board(&board);
         if (current_color == player || play_engine == false) {
             switch (current_color) {
                 case WHITE: printf("White, "); break;

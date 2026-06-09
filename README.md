@@ -2,15 +2,15 @@ I've decided to start creating a chess game and engine in C.
 I've already made one in Python, but I've decided to challenge myself by making it in C.
 
 ENGINE LEVEL:
-beat elani (400 elo bot) pretty easily.
+Beat nelson bot (1300)
 
 
 To-do:
 50 move rule
 3 move repitition
 test insufficient material
-Add quiescence search
 Increase depth when only a few pieces left
+Add move ordering
 
 Count in mobility (only slightly) (mobility of engine - mobility of opponent)
 Count in isolated/doubled/blocked pawns
