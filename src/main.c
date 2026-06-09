@@ -60,11 +60,7 @@ int main(void) {
                 get_player_move(buffer, sizeof(buffer));
                 move = string_to_move(buffer, board, current_color);
                 is_valid = is_legal(&board, move);
-                if (is_valid) {
-                    puts("VALID MOVE");
-                } else {
-                    puts("NOT VALID!!!");
-                }
+                if (!is_valid) puts("Not a valid move.");
             } while (!is_valid);
             move_piece(&board, move);
             // pawn promotion
