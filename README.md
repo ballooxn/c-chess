@@ -3,6 +3,7 @@ I've already made one in Python, but I've decided to challenge myself by making 
 
 ENGINE LEVEL:
 Beat nelson bot (1300)
+Drew Li by repetition  (2000)
 
 
 To-do:
@@ -10,7 +11,7 @@ To-do:
 3 move repitition
 test insufficient material
 Increase depth when only a few pieces left
-Add move ordering
+add transposition table
 
 Count in mobility (only slightly) (mobility of engine - mobility of opponent)
 Count in isolated/doubled/blocked pawns

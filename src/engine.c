@@ -11,9 +11,11 @@ int material_values[6] = {1, 3, 3, 5, 9, 0};
 #define MATERIAL_MULTIPLY 100
 
 #define FLIP_BOARD_NUM 56
-#define MAX_DEPTH 4
+#define MAX_DEPTH 6
 #define MATE_EVAL 100000
 #define INF 1000000 
+
+#define MAX_LEGAL_MOVES 218
 
 const int pst[6][64] = {
     [PAWN] = {
@@ -107,6 +109,49 @@ int evaluate(Board *board, Color engine_color) {
     return score;
 }
 
+int score_move(Board *board, Move *move) {
+    int score = 0;
+    if (get_bit(board->occupied, move->end)) {
+        PieceType victim = get_piece(board, move->end, OPP_COLOR(move->color));
+
+        if (victim != NO_PIECE) {
+            score = 1000 + (material_values[victim] * 10) - material_values[move->piece];
+        }
+    } else {
+        if (move->color == WHITE) {
+            score += pst[move->piece][move->end];
+        } else {
+            score += pst[move->piece][move->end ^ 56];
+        }
+    }
+    return score;
+}
+
+void sort_moves(Board *board, MoveList *move_list) {
+    int moves_count = move_list->count;
+    int move_scores[MAX_MOVES];
+
+    for (int i = 0; i < move_list->count; i++) {
+        move_scores[i] = score_move(board, &(move_list->moves[i]));
+    }
+
+    // sort moves
+
+    for (int step = 0; step < moves_count - 1; ++step) {
+        for (int i = 0; i < moves_count - step - 1; ++i) {
+            if (move_scores[i] < move_scores[i + 1]) {
+                Move temp = move_list->moves[i];
+                move_list->moves[i] = move_list->moves[i + 1];
+                move_list->moves[i + 1] = temp;
+
+                int temp_score = move_scores[i];
+                move_scores[i] = move_scores[i + 1];
+                move_scores[i + 1] = temp_score;
+            }
+        }
+    }
+}
+
 int quiescence(Board *board, Color color, Color engine_color, bool maximizing, int alpha, int beta) {
     int stand_pat = evaluate(board, engine_color);
 
@@ -118,6 +163,7 @@ int quiescence(Board *board, Color color, Color engine_color, bool maximizing, i
 
         MoveList capture_list;
         generate_legal_moves(board, color, &capture_list, true);
+        sort_moves(board, &capture_list);
 
         for (int i = 0; i < capture_list.count; i++) {
             Move move = capture_list.moves[i];
@@ -138,6 +184,7 @@ int quiescence(Board *board, Color color, Color engine_color, bool maximizing, i
 
         MoveList capture_list;
         generate_legal_moves(board, color, &capture_list, true);
+        sort_moves(board, &capture_list);
 
         for (int i = 0; i < capture_list.count; i++) {
             Move move = capture_list.moves[i];
@@ -171,6 +218,8 @@ int search(Board *board, int depth, Color color, Color engine_color, bool maximi
             return 0;
         }
     }
+
+    sort_moves(board, &move_list);
 
     if (maximizing) {
         int best_eval = -INF;
@@ -206,6 +255,7 @@ Move engine_move(Board *board, Color color) {
     // and is_castling and is_enpassant
     MoveList move_list;
     generate_legal_moves(board, color, &move_list, false);
+    sort_moves(board, &move_list);
 
     Move best_move = move_list.moves[0];
     int best_eval = -INF;
