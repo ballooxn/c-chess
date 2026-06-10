@@ -45,8 +45,8 @@ int main(void) {
     do {
         Move move;
         current_color = OPP_COLOR(current_color);
-        if (current_color == player) print_board(&board);
         if (current_color == player || play_engine == false) {
+            print_board(&board);
             switch (current_color) {
                 case WHITE: printf("White, "); break;
                 case BLACK: printf("Black, "); break;
@@ -64,9 +64,17 @@ int main(void) {
             } while (!is_valid);
             move_piece(&board, move);
             // pawn promotion
-            if (move.piece == PAWN && (RANK_OF(move.end) == 7 || RANK_OF(move.end) == 0)) {
+            if (PROMOTION(move.piece, move.end)) {
                 char promo_choice = get_promotion_choice(move.color);
-                promote_pawn(&board, move.end, promo_choice, move.color);
+                PieceType promo_piece;
+                switch (promo_choice) {
+                    case 'q': promo_piece = QUEEN; break;
+                    case 'r': promo_piece = ROOK; break;
+                    case 'b': promo_piece = BISHOP; break;
+                    case 'n': promo_piece = KNIGHT; break;
+                    default: promo_piece = QUEEN; break;
+                }
+                promote_pawn(&board, move.end, promo_piece, move.color);
             }
         } else {
             move = engine_move(&board, current_color);

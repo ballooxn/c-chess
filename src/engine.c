@@ -168,6 +168,9 @@ int quiescence(Board *board, Color color, Color engine_color, bool maximizing, i
         for (int i = 0; i < capture_list.count; i++) {
             Move move = capture_list.moves[i];
             move_piece(board, move);
+            if (move.engine_promotion != NO_PIECE) {
+                promote_pawn(board, move.end, move.engine_promotion, color);
+            }
             int eval = quiescence(board, OPP_COLOR(color), engine_color, false, alpha, beta);
             reverse_move(board, move);
 
@@ -189,6 +192,9 @@ int quiescence(Board *board, Color color, Color engine_color, bool maximizing, i
         for (int i = 0; i < capture_list.count; i++) {
             Move move = capture_list.moves[i];
             move_piece(board, move);
+            if (move.engine_promotion != NO_PIECE) {
+                promote_pawn(board, move.end, move.engine_promotion, color);
+            }
             int eval = quiescence(board, OPP_COLOR(color), engine_color, true, alpha, beta);
             reverse_move(board, move);
 
@@ -226,6 +232,9 @@ int search(Board *board, int depth, Color color, Color engine_color, bool maximi
         for (int i = 0; i < move_list.count; i++) {
             Move move = move_list.moves[i];
             move_piece(board, move);
+            if (move.engine_promotion != NO_PIECE) {
+                promote_pawn(board, move.end, move.engine_promotion, color);
+            }
             int eval = search(board, depth - 1, OPP_COLOR(color), engine_color, false, alpha, beta);
             reverse_move(board, move);
 
@@ -239,6 +248,9 @@ int search(Board *board, int depth, Color color, Color engine_color, bool maximi
         for (int i = 0; i < move_list.count; i++) {
             Move move = move_list.moves[i];
             move_piece(board, move);
+            if (move.engine_promotion != NO_PIECE) {
+                promote_pawn(board, move.end, move.engine_promotion, color);
+            }
             int eval = search(board, depth - 1, OPP_COLOR(color), engine_color, true, alpha, beta);
             reverse_move(board, move);
 
@@ -264,6 +276,9 @@ Move engine_move(Board *board, Color color) {
     for (int i = 0; i < move_list.count; i++) {
         Move move = move_list.moves[i];
         move_piece(board, move);
+        if (move.engine_promotion != NO_PIECE) {
+            promote_pawn(board, move.end, move.engine_promotion, color);
+        }
         int eval = search(board, MAX_DEPTH - 1, OPP_COLOR(color), color, false, alpha, INF);
         reverse_move(board, move);
 

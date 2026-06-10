@@ -196,7 +196,7 @@ void test_pawn_promotion(void) {
     apply_moves(&board, moves);
 
     move_piece(&board, string_to_move("g7h8", board, WHITE));
-    promote_pawn(&board, 63, 'q', WHITE);
+    promote_pawn(&board, 63, QUEEN, WHITE);
     assert(get_bit(board.pieces[WHITE][QUEEN], 63));
     assert(!get_bit(board.pieces[WHITE][PAWN], 63));
 }

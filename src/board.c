@@ -357,18 +357,9 @@ void reverse_move(Board *board, Move move) {
     board->black_can_castle_queenside = board->history[count].black_can_castle_queenside;
 }
 
-void promote_pawn(Board* board, int sq, char promo_char, Color color) {
+void promote_pawn(Board* board, int sq, PieceType promo_piece, Color color) {
     remove_piece(board, sq, PAWN, color);
-
-    PieceType new_piece;
-    switch (promo_char) {
-        case 'q': new_piece = QUEEN; break;
-        case 'r': new_piece = ROOK; break;
-        case 'b': new_piece = BISHOP; break;
-        case 'n': new_piece = KNIGHT; break;
-        default: new_piece = QUEEN; break;
-    }
-    place_piece(board, sq, new_piece, color);
+    place_piece(board, sq, promo_piece, color);
 }
 
 static uint64_t * const pawn_pushes[2] = {white_pawn_pushes, black_pawn_pushes};
@@ -506,7 +497,15 @@ void generate_legal_moves(Board* board, Color color, MoveList* list, bool filter
                 move.is_castling = is_castle_move(move);
                 move.is_enpassant = is_enpassant(board, move);
                 if (is_legal(board, move)) {
-                    list->moves[list->count++] = move;
+                    if (PROMOTION(move.piece, move.end)) {
+                        for (int pt = KNIGHT; pt < KING; pt++) {
+                            Move new_move = move;
+                            new_move.engine_promotion = pt;
+                            list->moves[list->count++] = new_move;
+                        }
+                    } else {
+                        list->moves[list->count++] = move;
+                    }
                 }
             }
         }

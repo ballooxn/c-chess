@@ -6,7 +6,7 @@
 
 #define RANK_OF(pos)            ((pos) / 8)
 #define FILE_OF(pos)            ((pos) % 8)
-#define DELTA(new, old)    (abs((new) - (old)))
+#define DELTA(new, old)         (abs((new) - (old)))
 
 #define A1 0
 #define C1 2
@@ -24,6 +24,7 @@ typedef enum {PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING, ALL, PIECE_NUM, NO_PIECE 
 typedef enum {RESULT_NONE, RESULT_WHITE_WINS, RESULT_BLACK_WINS, RESULT_STALEMATE, RESULT_INSUFF_MATERIAL, RESULT_REPETITION} GameResult;
 
 #define OPP_COLOR(color)    (((color) == WHITE) ? BLACK : WHITE)
+#define PROMOTION(piece, end)   ((piece) == PAWN && (RANK_OF(end) == 7 || RANK_OF(end) == 0))
 
 inline void set_bit(uint64_t* bb, int sq) {
     *bb |= (1ULL << sq);
@@ -100,7 +101,7 @@ void place_piece(Board *board, int sq, PieceType pt, Color color);
 void remove_piece(Board *board, int sq, PieceType pt, Color color);
 void move_piece(Board* board, Move move);
 void reverse_move(Board *board, Move move);
-void promote_pawn(Board* board, int sq, char promo_char, Color color);
+void promote_pawn(Board* board, int sq, PieceType promo_piece, Color color);
 void generate_legal_moves(Board* board, Color color, MoveList* list, bool filter_captures);
 bool has_legal_moves(Board *board, Color color);
 bool is_checkmate(Board *board, Color color);
