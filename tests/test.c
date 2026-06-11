@@ -14,12 +14,6 @@ static void apply_moves(Board *board, char *moves[]) {
         Move move = string_to_move(moves[i], *board, color);
         assert(is_legal(board, move));
         move_piece(board, move);
-        if (move.piece == PAWN && DELTA(RANK_OF(move.end), RANK_OF(move.start)) == 2) {
-            // set sq to the square directly between newly pushed pawned
-            board->enpassant_sq = move.end + (color == WHITE ? -8 : 8);
-        } else {
-            board->enpassant_sq = 100;
-        }
     }
 }
 
@@ -45,6 +39,7 @@ uint64_t perft(Board* board, Color color, int depth) {
 
 void test_perft_depth_one(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     int depth = 1;
     uint64_t result = perft(&board, WHITE, depth);
     printf("Perft %d: %lu\n", depth, result);
@@ -53,6 +48,7 @@ void test_perft_depth_one(void) {
 
 void test_perft_depth_two(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     int depth = 2;
     uint64_t result = perft(&board, WHITE, depth);
     printf("Perft %d: %lu\n", depth, result);
@@ -61,6 +57,7 @@ void test_perft_depth_two(void) {
 
 void test_perft_depth_three(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     int depth = 3;
     uint64_t result = perft(&board, WHITE, depth);
     printf("Perft %d: %lu\n", depth, result);
@@ -69,6 +66,7 @@ void test_perft_depth_three(void) {
 
 void test_perft_depth_four(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     int depth = 4;
     uint64_t result = perft(&board, WHITE, depth);
     printf("Perft %d: %lu\n", depth, result);
@@ -77,6 +75,7 @@ void test_perft_depth_four(void) {
 
 void test_perft_depth_five(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     int depth = 5;
     uint64_t result = perft(&board, WHITE, depth);
     printf("Perft %d: %lu\n", depth, result);
@@ -85,6 +84,7 @@ void test_perft_depth_five(void) {
 
 void test_perft_depth_six(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     int depth = 6;
     uint64_t result = perft(&board, WHITE, depth);
     printf("Perft %d: %lu\n", depth, result);
@@ -93,21 +93,25 @@ void test_perft_depth_six(void) {
 
 void test_valid_move(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     assert(valid_move(&board, string_to_move("e2e3", board, WHITE)));
 }
 
 void test_cant_capture_own_pieces(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     assert(!is_legal(&board, string_to_move("a1b1", board, WHITE)));
 }
 
 void test_cant_move_opponents_pieces(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     assert(!is_legal(&board, string_to_move("e7e6", board, WHITE)));
 }
 
 void test_move_piece(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     Move move = string_to_move("e2e3", board, WHITE);
     int start_bits = 12;
     int end_bits = 20;
@@ -119,6 +123,7 @@ void test_move_piece(void) {
 
 void test_undo_move(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     Move move = string_to_move("e2e3", board, WHITE);
     int start_bits = 12;
     int end_bits = 20;
@@ -131,16 +136,19 @@ void test_undo_move(void) {
 
 void test_double_pawn_push(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     assert(is_legal(&board, string_to_move("e2e4", board, WHITE)));
 }
 
 void test_single_pawn_push(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     assert(is_legal(&board, string_to_move("e2e3", board, WHITE)));
 }
 
 void test_pawn_cant_move_backward(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "d7d5", NULL
     };
@@ -150,6 +158,7 @@ void test_pawn_cant_move_backward(void) {
 
 void test_pawn_capture(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "d7d5", NULL
     };
@@ -159,6 +168,7 @@ void test_pawn_capture(void) {
 
 void test_pawn_en_passant(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "d7d5",
         "e4e5", "f7f5",
@@ -170,6 +180,7 @@ void test_pawn_en_passant(void) {
 
 void test_pawn_en_passant_capture_removal(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "d7d5",
         "e4e5", "f7f5",
@@ -186,6 +197,7 @@ void test_pawn_en_passant_capture_removal(void) {
 
 void test_pawn_promotion(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "f7f5",
         "e4f5", "a7a6",
@@ -195,19 +207,22 @@ void test_pawn_promotion(void) {
     };
     apply_moves(&board, moves);
 
-    move_piece(&board, string_to_move("g7h8", board, WHITE));
-    promote_pawn(&board, 63, QUEEN, WHITE);
+    Move move = string_to_move("g7h8", board, WHITE);
+    move.promotion = QUEEN;
+    move_piece(&board, move);
     assert(get_bit(board.pieces[WHITE][QUEEN], 63));
     assert(!get_bit(board.pieces[WHITE][PAWN], 63));
 }
 
 void test_knight_movement(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     assert(is_legal(&board, string_to_move("g1f3", board, WHITE)));
 }
 
 void test_bishop_movement(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "d7d5", NULL
     };
@@ -217,6 +232,7 @@ void test_bishop_movement(void) {
 
 void test_bishop_cant_move_like_rook(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "d7d5", "f1c4", "a7a6", NULL
     };
@@ -226,6 +242,7 @@ void test_bishop_cant_move_like_rook(void) {
 
 void test_rook_movement(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "a2a4", "d7d5", NULL
     };
@@ -235,6 +252,7 @@ void test_rook_movement(void) {
 
 void test_queen_movement(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "d7d5", NULL
     };
@@ -244,6 +262,7 @@ void test_queen_movement(void) {
 
 void test_king_movement(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "d7d5", NULL
     };
@@ -253,6 +272,7 @@ void test_king_movement(void) {
 
 void test_king_castle_kingside(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "e7e5",
         "g1f3", "b8c6",
@@ -267,6 +287,7 @@ void test_king_castle_kingside(void) {
 
 void test_king_castle_queenside(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "d2d4", "a7a6",
         "b1a3", "a6a5",
@@ -282,6 +303,7 @@ void test_king_castle_queenside(void) {
 
 void test_cant_castle_king_moved(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "e7e5",
         "e1e2", "e8e7",
@@ -297,6 +319,7 @@ void test_cant_castle_king_moved(void) {
 
 void test_cant_castle_rook_moved(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "e7e5",
         "f1c4", "d7d5",
@@ -315,6 +338,7 @@ void test_cant_castle_rook_moved(void) {
 
 void test_in_check(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "f7f5", "d1h5", NULL
     };
@@ -325,6 +349,7 @@ void test_in_check(void) {
 
 void test_cant_move_into_check(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "d7d5", "e1e2", "d8d6", "e2e3", "d6f6", NULL
     };
@@ -334,6 +359,7 @@ void test_cant_move_into_check(void) {
 
 void test_must_resolve_check(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "f7f5", "d1h5", NULL
     };
@@ -343,6 +369,7 @@ void test_must_resolve_check(void) {
 
 void test_cant_castle_through_check(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "e7e5",
         "g1h3", "d8h4",
@@ -359,6 +386,7 @@ void test_cant_castle_through_check(void) {
 
 void test_pinned_piece_cant_move(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "a7a5", "d1h5", NULL
     };
@@ -368,6 +396,7 @@ void test_pinned_piece_cant_move(void) {
 
 void test_stalemate_basic(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e3", "a7a5", "d1h5", "a8a6", "h5a5", "h7h5",
         "a5c7", "a6h6", "h2h4", "f7f6", "c7d7", "e8f7",
@@ -379,6 +408,7 @@ void test_stalemate_basic(void) {
 
 void test_checkmate_fools_mate(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "f7f5", "a2a3", "g7g5", "d1h5", NULL
     };
@@ -388,6 +418,7 @@ void test_checkmate_fools_mate(void) {
 
 void test_castle_checkmate(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "d2d4", "f7f5",
         "b1c3", "g8f6",
@@ -415,6 +446,7 @@ void test_castle_checkmate(void) {
 
 void test_in_check_no_checkmate(void) {
     Board board = init_board();
+    init_zobrist_key(&board, WHITE);
     char *moves[] = {
         "e2e4", "f7f5", "d1h5", NULL
     };
@@ -438,8 +470,18 @@ void test_fifty_move_rule(void) {
     assert(true);
 }
 
-void test_threefold_repitition(void) {
-    assert(true);
+void test_threefold_repetition(void) {
+    Board board = init_board();
+    init_zobrist_key(&board, WHITE);
+
+    char *moves[] = {
+        "g1f3", "g8f6", "f3g1", "f6g8",
+        "g1f3", "g8f6", "f3g1", "f6g8",
+        NULL
+    };
+
+    apply_moves(&board, moves);
+    assert(is_repetition(&board));
 }
 
 #define RUNS 10
@@ -466,6 +508,8 @@ void run_perft_timed_tests() {
 
 int main(void) {
     init_attacks();
+    init_zobrist();
+
     test_valid_move();
     test_cant_capture_own_pieces();
     test_cant_move_opponents_pieces();
@@ -500,7 +544,7 @@ int main(void) {
     test_insufficient_material_kvkb();
     test_insufficient_material_kvkn();
     test_fifty_move_rule();
-    test_threefold_repitition();
+    test_threefold_repetition();
     puts("All tests passed.");  
 
     run_perft_timed_tests();

@@ -29,6 +29,8 @@ void get_player_move(char* buffer, size_t size) {
 int main(void) {
     Board board = init_board();
     init_attacks();
+    init_zobrist();
+    init_zobrist_key(&board, WHITE);
 
     GameResult winner = RESULT_NONE;
     Color player;
@@ -62,8 +64,6 @@ int main(void) {
                 is_valid = is_legal(&board, move);
                 if (!is_valid) puts("Not a valid move.");
             } while (!is_valid);
-            move_piece(&board, move);
-            // pawn promotion
             if (PROMOTION(move.piece, move.end)) {
                 char promo_choice = get_promotion_choice(move.color);
                 PieceType promo_piece;
@@ -74,14 +74,13 @@ int main(void) {
                     case 'n': promo_piece = KNIGHT; break;
                     default: promo_piece = QUEEN; break;
                 }
-                promote_pawn(&board, move.end, promo_piece, move.color);
+                move.promotion = promo_piece;
             }
+            move_piece(&board, move);
+            // pawn promotion
         } else {
             move = engine_move(&board, current_color);
             move_piece(&board, move);
-            if (move.piece == PAWN && (RANK_OF(move.end) == 7 || RANK_OF(move.end) == 0)) {
-                promote_pawn(&board, move.end, move.engine_promotion, move.color);
-            }
         }
 
         Color opp = (current_color == WHITE) ? BLACK : WHITE;
@@ -91,11 +90,21 @@ int main(void) {
             winner = RESULT_STALEMATE;
         } else if (insufficient_material(&board)) {
             winner = RESULT_INSUFF_MATERIAL;
+        } else if (board.halfmove_clock >= 50) {
+            winner = RESULT_50_MOVE;
+        } else if (is_repetition(&board)) {
+            winner = RESULT_REPETITION;
         }
 
     } while (winner == RESULT_NONE);
     if (winner == RESULT_STALEMATE) {
         puts("Stalemate! Nobody wins!");
+    } else if (winner == RESULT_INSUFF_MATERIAL) {
+        puts("Draw! Insufficient checkmating material");
+    } else if (winner == RESULT_50_MOVE) {
+        puts("Draw! 50 moves have passed with a capture or pawn move.");
+    } else if (winner == RESULT_REPETITION) {
+        puts("Draw! Board has reached the same position three times.");
     } else {
         printf("Checkmate! the winner is: ");
         switch (winner) {

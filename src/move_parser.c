@@ -105,7 +105,7 @@ Move string_to_move(char* string, Board board, Color color) {
     int start = pos_to_int(string[1], string[0]);
     int end = pos_to_int(string[3], string[2]);
     char piece = get_piece(&board, start, color);
-    Move move = {.start = start, .end = end, .piece = piece, .color = color, .engine_promotion = NO_PIECE, .is_castling = false};
+    Move move = {.start = start, .end = end, .piece = piece, .color = color, .promotion = NO_PIECE, .is_castling = false};
     move.is_castling = is_castle_move(move);
     move.is_enpassant = is_enpassant(&board, move);
     return move;

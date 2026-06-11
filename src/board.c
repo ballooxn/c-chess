@@ -10,6 +10,11 @@
 
 #define SQUARES 64
 
+uint64_t zobrist_pieces[COLOR_NUM][PIECE_NUM][64];
+uint64_t zobrist_black_to_move;
+uint64_t zobrist_castling[16];
+uint64_t zobrist_ep_file[8];
+
 uint64_t knight_attacks[SQUARES];
 const int knight_offsets[8] = {
     17,  // 2 (rank),1 (file)
@@ -75,8 +80,71 @@ Board init_board(void)
     board.black_can_castle_kingside= true;
     board.black_can_castle_queenside = true;
     board.enpassant_sq = 100;
-    board.history_count = 0;
+    board.halfmove_clock = 0;
+    board.undo_history_count = 0;
+    board.zobrist_history_count = 0;
     return board;
+}
+
+uint64_t xorshift(uint64_t *state) {
+    uint64_t x = *state;
+    x ^= x << 13;
+    x ^= x >> 7;
+    x ^= x << 17;
+    *state = x;
+    return x;
+}
+
+void init_zobrist(void) {
+    uint64_t state = 123456789ULL;
+
+    for (int color = 0; color < 2; color++) {
+        for (int pt = 0; pt < 6; pt++) {
+            for (int sq = 0; sq < 64; sq++) {
+                zobrist_pieces[color][pt][sq] = xorshift(&state);
+            }
+        }
+    }
+    for (int i = 0; i < 16; i++) {
+        zobrist_castling[i] = xorshift(&state);
+    }
+    for (int i = 0; i < 8; i++) {
+        zobrist_ep_file[i] = xorshift(&state);
+    }
+    zobrist_black_to_move = xorshift(&state);
+}
+
+void init_zobrist_key(Board *board, Color side_to_move) {
+    board->current_zobrist_key = 0;
+
+    for (Color color = WHITE; color <= BLACK; color++) {
+        for (PieceType pt = PAWN; pt <= KING; pt++) {
+            uint64_t bb = board->pieces[color][pt];
+            while (bb) {
+                int sq = __builtin_ctzll(bb);
+                bb &= bb - 1;
+
+                board->current_zobrist_key ^= zobrist_pieces[color][pt][sq];
+            }
+        }
+    }
+
+    int castling_rights =   (board->white_can_castle_kingside << 0) |
+                            (board->white_can_castle_queenside << 1) |
+                            (board->black_can_castle_kingside << 2) |
+                            (board->black_can_castle_queenside << 3);
+    board->current_zobrist_key ^= zobrist_castling[castling_rights];
+
+    if (board->enpassant_sq != 100) {
+        int file = FILE_OF(board->enpassant_sq);
+        board->current_zobrist_key ^= zobrist_ep_file[file];
+    }
+    if (side_to_move == BLACK) {
+        board->current_zobrist_key ^= zobrist_black_to_move;
+    }
+
+    board->zobrist_history[0] = board->current_zobrist_key;
+    board->zobrist_history_count = 1;
 }
 
 static void init_pawn_attacks(void) {
@@ -269,41 +337,66 @@ static void move_castle_rook(Board *board, Move king_move, bool reversing) {
         remove_piece(board, rook_end, ROOK, king_move.color);
         place_piece(board, rook_start, ROOK, king_move.color);
     } else {
+        board->current_zobrist_key ^= zobrist_pieces[king_move.color][ROOK][rook_end];
         remove_piece(board, rook_start, ROOK, king_move.color);
+        board->current_zobrist_key ^= zobrist_pieces[king_move.color][ROOK][rook_start];
         place_piece(board, rook_end, ROOK, king_move.color);
     }
 }
 
 void move_piece(Board *board, Move move)
 {
-    int count = board->history_count;
-    board->history[count].enpassant_sq = board->enpassant_sq;
-    board->history[count].white_can_castle_kingside = board->white_can_castle_kingside;
-    board->history[count].white_can_castle_queenside = board->white_can_castle_queenside;
-    board->history[count].black_can_castle_kingside = board->black_can_castle_kingside;
-    board->history[count].black_can_castle_queenside = board->black_can_castle_queenside;
+    int count = board->undo_history_count;
+
+    board->undo_history[count].halfmove_clock = board->halfmove_clock;
+    board->undo_history[count].enpassant_sq = board->enpassant_sq;
+    board->undo_history[count].white_can_castle_kingside = board->white_can_castle_kingside;
+    board->undo_history[count].white_can_castle_queenside = board->white_can_castle_queenside;
+    board->undo_history[count].black_can_castle_kingside = board->black_can_castle_kingside;
+    board->undo_history[count].black_can_castle_queenside = board->black_can_castle_queenside;
+
+    int old_castling =  (board->white_can_castle_kingside << 0) |
+                        (board->white_can_castle_queenside << 1) |
+                        (board->black_can_castle_kingside << 2) |
+                        (board->black_can_castle_queenside << 3);
+    board->current_zobrist_key ^= zobrist_castling[old_castling];
     
     Color opp = OPP_COLOR(move.color);
     PieceType target_piece = get_piece(board, move.end, opp);
-    board->history[count].captured_piece = target_piece;
+    board->undo_history[count].captured_piece = target_piece;
+    board->halfmove_clock++;
 
+    if (target_piece != NO_PIECE || move.piece == PAWN) board->halfmove_clock = 0;
+
+    board->current_zobrist_key ^= zobrist_pieces[move.color][move.piece][move.start];
     remove_piece(board, move.start, move.piece, move.color);
     if (target_piece != NO_PIECE) {
+        board->current_zobrist_key ^= zobrist_pieces[opp][target_piece][move.end];
         remove_piece(board, move.end, target_piece, opp);
     }
     if (move.is_enpassant) {
         int side_dir = (FILE_OF(move.end) > FILE_OF(move.start)) ? 1 : -1;
         int side_pawn = move.start + side_dir;
+        board->current_zobrist_key ^= zobrist_pieces[opp][PAWN][side_pawn];
         remove_piece(board, side_pawn, PAWN, opp);
     }
-    place_piece(board, move.end, move.piece, move.color);
+    PieceType piece_to_place = (move.promotion != NO_PIECE) ? move.promotion : move.piece;
+    board->current_zobrist_key ^= zobrist_pieces[move.color][piece_to_place][move.end];
+    place_piece(board, move.end, piece_to_place, move.color);
 
     if (move.is_castling) move_castle_rook(board, move, false);
 
     if (move.piece == PAWN && DELTA(RANK_OF(move.end), RANK_OF(move.start)) == 2) {
         board->enpassant_sq = move.end + (move.color == WHITE ? -8 : 8);
+        if (board->undo_history[count].enpassant_sq != 100) {
+            board->current_zobrist_key ^= zobrist_ep_file[FILE_OF(board->undo_history[count].enpassant_sq)];
+        }
+        board->current_zobrist_key ^= zobrist_ep_file[FILE_OF(move.start)];
     } else {
         board->enpassant_sq = 100;
+        if (board->undo_history[count].enpassant_sq != 100) {
+            board->current_zobrist_key ^= zobrist_ep_file[FILE_OF(board->undo_history[count].enpassant_sq)];
+        }
     }
 
     if (move.piece == KING) {
@@ -324,42 +417,59 @@ void move_piece(Board *board, Move move)
             if (move.start == A8) board->black_can_castle_queenside = false;
         }
     }
-    board->history_count++;
+    if (target_piece == ROOK) {
+        if (opp == WHITE) {
+            if (move.end == H1) board->white_can_castle_kingside = false;
+            if (move.end == A1) board->white_can_castle_queenside = false;
+        } else {
+            if (move.end == H8) board->black_can_castle_kingside = false;
+            if (move.end == A8) board->black_can_castle_queenside = false;
+        }
+    }
+
+    int new_castling =  (board->white_can_castle_kingside << 0) |
+                        (board->white_can_castle_queenside << 1) |
+                        (board->black_can_castle_kingside << 2) |
+                        (board->black_can_castle_queenside << 3);
+    board->current_zobrist_key ^= zobrist_castling[new_castling];
+
+    board->current_zobrist_key ^= zobrist_black_to_move;
+    board->zobrist_history[board->zobrist_history_count] = board->current_zobrist_key;
+    board->zobrist_history_count++;
+    board->undo_history_count++;
 }
 
 void reverse_move(Board *board, Move move) {
-    board->history_count--;
-    int count = board->history_count;
+    board->undo_history_count--;
+    int count = board->undo_history_count;
+
+    board->zobrist_history_count--;
+    board->current_zobrist_key = board->zobrist_history[board->zobrist_history_count - 1];
     
     Color opp = OPP_COLOR(move.color);
 
-    remove_piece(board, move.end, move.piece, move.color);
+    PieceType piece_to_remove = (move.promotion != NO_PIECE) ? move.promotion : move.piece;
+    remove_piece(board, move.end, piece_to_remove, move.color);
     place_piece(board, move.start, move.piece, move.color);
 
-    PieceType target_piece = board->history[count].captured_piece;
-    if (target_piece != NO_PIECE)
-    {
+    PieceType target_piece = board->undo_history[count].captured_piece;
+    if (target_piece != NO_PIECE) {
         place_piece(board, move.end, target_piece, opp);
     }
     
     if (move.is_castling) move_castle_rook(board, move, true); 
 
-    if (move.piece == PAWN && move.end == board->history[count].enpassant_sq &&
-        abs(FILE_OF(move.end) - FILE_OF(move.start)) == 1)  {
+    if (move.is_enpassant)  {
         int side_dir = (FILE_OF(move.end) > FILE_OF(move.start)) ? 1 : -1;
         int side_pawn = move.start + side_dir;
         place_piece(board, side_pawn, PAWN, opp);
     }
-    board->enpassant_sq = board->history[count].enpassant_sq;
-    board->white_can_castle_kingside = board->history[count].white_can_castle_kingside;
-    board->white_can_castle_queenside = board->history[count].white_can_castle_queenside;
-    board->black_can_castle_kingside = board->history[count].black_can_castle_kingside;
-    board->black_can_castle_queenside = board->history[count].black_can_castle_queenside;
-}
-
-void promote_pawn(Board* board, int sq, PieceType promo_piece, Color color) {
-    remove_piece(board, sq, PAWN, color);
-    place_piece(board, sq, promo_piece, color);
+    board->halfmove_clock = board->undo_history[count].halfmove_clock;
+    board->enpassant_sq = board->undo_history[count].enpassant_sq;
+    board->white_can_castle_kingside = board->undo_history[count].white_can_castle_kingside;
+    board->white_can_castle_queenside = board->undo_history[count].white_can_castle_queenside;
+    board->black_can_castle_kingside = board->undo_history[count].black_can_castle_kingside;
+    board->black_can_castle_queenside = board->undo_history[count].black_can_castle_queenside;
 }
 
 static uint64_t * const pawn_pushes[2] = {white_pawn_pushes, black_pawn_pushes};
@@ -491,16 +601,16 @@ void generate_legal_moves(Board* board, Color color, MoveList* list, bool filter
             int possible_end_sqs[64];
             int end_sq_count = generators[pt](board, color, sq, possible_end_sqs, pt);
             for (int i = 0; i < end_sq_count; i++) {
-                if (filter_captures && !get_bit(board->occupied, possible_end_sqs[i])) continue;
                 Move move = {.start = sq, .end = possible_end_sqs[i], .piece = pt, .color = color, 
-                            .engine_promotion = NO_PIECE, .is_castling = false, .is_enpassant = false};
+                            .promotion = NO_PIECE, .is_castling = false, .is_enpassant = false};
+                if (filter_captures && !get_bit(board->occupied, possible_end_sqs[i]) && !move.is_enpassant) continue;
                 move.is_castling = is_castle_move(move);
                 move.is_enpassant = is_enpassant(board, move);
                 if (is_legal(board, move)) {
                     if (PROMOTION(move.piece, move.end)) {
                         for (int pt = KNIGHT; pt < KING; pt++) {
                             Move new_move = move;
-                            new_move.engine_promotion = pt;
+                            new_move.promotion = pt;
                             list->moves[list->count++] = new_move;
                         }
                     } else {
@@ -526,7 +636,7 @@ bool has_legal_moves(Board *board, Color color) {
             for (int i = 0; i < count; i++) {
 
                 Move temp_move = {.start = sq, .end = possible_end_sqs[i], .piece = pt, .color = color,
-                                  .engine_promotion = NO_PIECE, .is_castling = false, .is_enpassant = false};
+                                  .promotion = NO_PIECE, .is_castling = false, .is_enpassant = false};
                 temp_move.is_castling = is_castle_move(temp_move);
                 temp_move.is_enpassant = is_enpassant(board, temp_move);
                 if (is_legal(board, temp_move)) return true;
@@ -546,6 +656,15 @@ bool is_stalemate(Board* board, Color color) {
     if (in_check(board, color)) return false;
 
     return (!has_legal_moves(board, color));
+}
+
+bool is_repetition(Board *board) { 
+    int count = 0;
+    uint64_t current_key = board->zobrist_history[board->zobrist_history_count - 1];
+    for (int i = board->zobrist_history_count - 1; i >= 0; i -= 2) {
+        if (board->zobrist_history[i] == current_key) count++;
+    }
+    return count >= 3;
 }
 
 bool insufficient_material(Board* board) {
