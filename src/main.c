@@ -92,7 +92,7 @@ int main(void) {
             winner = RESULT_INSUFF_MATERIAL;
         } else if (board.halfmove_clock >= 50) {
             winner = RESULT_50_MOVE;
-        } else if (is_repetition(&board)) {
+        } else if (is_repetition(&board, 3)) {
             winner = RESULT_REPETITION;
         }
 

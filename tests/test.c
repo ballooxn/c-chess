@@ -481,7 +481,7 @@ void test_threefold_repetition(void) {
     };
 
     apply_moves(&board, moves);
-    assert(is_repetition(&board));
+    assert(is_repetition(&board, 3));
 }
 
 #define RUNS 10

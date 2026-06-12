@@ -6,12 +6,17 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
+#include <time.h>
+
+#define TT_SIZE 4194304 // power of two, around 160 MB
+PositionData trans_table[TT_SIZE];
+uint64_t tt_mask = TT_SIZE - 1;
+uint8_t tt_current_age = 0;
 
 int material_values[6] = {1, 3, 3, 5, 9, 0};
 #define MATERIAL_MULTIPLY 100
 
 #define FLIP_BOARD_NUM 56
-#define MAX_DEPTH 6
 #define MATE_EVAL 100000
 #define INF 1000000 
 
@@ -20,11 +25,11 @@ int material_values[6] = {1, 3, 3, 5, 9, 0};
 const int pst[6][64] = {
     [PAWN] = {
         0, 0, 0, 0, 0, 0, 0, 0,
-        5, 10, 10, -25, -25, 10, 10, 5,
-        5, -5, -10, 0, 0, -10, -5, 5,
-        0, 0, 0, 25, 25, 0, 0, 0,
-        5, 5, 10, 27, 27, 10, 5, 5,
-        10, 10, 20, 30, 30, 20, 10, 10,
+        5, 5, 5, 5, 5, 5, 5, 5,
+        5, 0, 0, 25, 25, 0, 0, 5,
+        0, 0, 5, 27, 27, 5, 0, 0,
+        20, 20, 25, 30, 30, 25, 20, 20,
+        30, 30, 35, 45, 45, 35, 30, 30,
         50, 50, 50, 50, 50, 50, 50, 50,
         0, 0, 0, 0, 0, 0, 0, 0
     },
@@ -48,6 +53,26 @@ const int pst[6][64] = {
         -10, 0, 0, 0, 0, 0, 0, -10,
         -20, -10, -10, -10, -10, -10, -10, -20
     },
+    [ROOK] = {
+        -5, 0, 0, 10, 10, 5, 0, -5,
+        0, 0, 0, 10, 10, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0,
+        10, 10, 10, 10, 10, 10, 10, 10,
+        10, 10, 10, 10, 10, 10, 10, 10
+    },
+    [QUEEN] = {
+        -20, -10, -10, 0, 0, -10, -10, -20,
+        -10, 0, 5, 0, 0, 0, 0, -10,
+        -10, 5, 5, 5, 5, 5, 0, -10,
+        -5, 0, 5, 5, 5, 5, 0, -5,
+        -5, 0, 5, 5, 5, 5, 0, -5,
+        -10, 0, 5, 5, 5, 5, 0, -10,
+        -10, 0, 0, 0, 0, 0, 0, -10,
+        -20, -10, 0, 0, 0, 0, -10, -20
+    },
     [KING] = {
         20,  30,  10,  0,  0,  10,  30,  20,
         20,  20,  0,  0,  0,  0,  20,  20,
@@ -57,6 +82,38 @@ const int pst[6][64] = {
         -30, -40, -40, -50, -50, -40, -40, -30,
         -30, -40, -40, -50, -50, -40, -40, -30,
         -30, -40, -40, -50, -50, -40, -40, -30
+    }
+};
+const int endgame_pst[6][64] = {
+    [PAWN] = {
+        0, 0, 0, 0, 0, 0, 0, 0,
+        50, 50, 50, 50, 50, 50, 50, 50,
+        10, 10, 20, 30, 30, 20, 10, 10,
+        5, 5, 10, 27, 27, 10, 5, 5,
+        0, 0, 0, 25, 25, 0, 0, 0,
+        5, -5, -10, 0, 0, -10, -5, 5,
+        5, 10, 10, -25, -25, 10, 10, 5,
+        0, 0, 0, 0, 0, 0, 0, 0
+    },
+    [KNIGHT] = {
+        -50, -40, -20, -30, -30, -20, -40, -50,
+        -40, -20, 0, 5, 5, 0, -20, -40,
+        -30, 5, 10, 15, 15, 10, 5, -30,
+        -30, 0, 15, 20, 20, 15, 0, -30,
+        -30, 5, 15, 20, 20, 15, 5, -30,
+        -30, 0, 10, 15, 15, 10, 0, -30,
+        -40, -20, 0, 0, 0, 0, -20, -40,
+        -50, -40, -30, -30, -30, -30, -40, -50
+    },
+    [BISHOP] = {
+        -20, -10, -40, -10, -10, -40, -10, -20,
+        -10, 5, 0, 0, 0, 0, 5, -10,
+        -10, 10, 10, 10, 10, 10, 10, -10,
+        -10, 0, 10, 10, 10, 10, 0, -10,
+        -10, 5, 5, 10, 10, 5, 5, -10,
+        -10, 0, 5, 10, 10, 5, 0, -10,
+        -10, 0, 0, 0, 0, 0, 0, -10,
+        -20, -10, -10, -10, -10, -10, -10, -20
     },
     [ROOK] = {
         -5, 0, 0, 10, 10, 5, 0, -5,
@@ -77,10 +134,34 @@ const int pst[6][64] = {
         -10, 0, 5, 5, 5, 5, 0, -10,
         -10, 0, 0, 0, 0, 0, 0, -10,
         -20, -10, 0, 0, 0, 0, -10, -20
+    },
+    [KING] = {
+        -50, -30, -30, -30, -30, -30, -30, -50,
+        -30, -10, 0, 0, 0, 0, -10, -30,
+        -30, 0, 20, 30, 30, 20, 0, -30,
+        -30, 0, 30, 40, 40, 30, 0, -30,
+        -30, 0, 30, 40, 40, 30, 0, -30,
+        -30, 0, 20, 30, 30, 20, 0, -30,
+        -30, -10, 0, 0, 0, 0, -10, -30,
+        -50, -30, -30, -30, -30, -30, -30, -50
     }
 };
 
-int count_material_positional_value(Board *board, Color color) {
+int get_game_phase(Board *board) {
+    int phase = 0;
+
+    phase += __builtin_popcountll(board->pieces[WHITE][KNIGHT] | board->pieces[BLACK][KNIGHT]) * 1;
+    phase += __builtin_popcountll(board->pieces[WHITE][BISHOP] | board->pieces[BLACK][BISHOP]) * 1;
+    phase += __builtin_popcountll(board->pieces[WHITE][ROOK] | board->pieces[BLACK][ROOK]) * 2;
+    phase += __builtin_popcountll(board->pieces[WHITE][QUEEN] | board->pieces[BLACK][QUEEN]) * 4;
+
+    return phase;
+}
+
+int MIDDLE_LIMIT = 12;
+int END_LIMIT = 4;
+
+int count_material_positional_value(Board *board, Color color, int phase) {
     int score = 0;
     for (PieceType pt = PAWN; pt <= KING; pt++) {
         uint64_t bb = board->pieces[color][pt];
@@ -91,26 +172,44 @@ int count_material_positional_value(Board *board, Color color) {
 
             score += (material_values[pt] * MATERIAL_MULTIPLY);
 
-            if (color == WHITE) {
-                score += pst[pt][sq ^ 56];
+            int pst_sq = (color == WHITE) ? sq : (sq ^ FLIP_BOARD_NUM);
+
+            if (pt == KING) {
+                int middle_score = pst[KING][pst_sq];
+                int end_score = endgame_pst[KING][pst_sq];
+                int blended_score;
+
+                if (phase >= MIDDLE_LIMIT) {
+                    blended_score = middle_score;
+                } else if (phase <= END_LIMIT) {
+                    blended_score = end_score;
+                } else {
+                    int range = MIDDLE_LIMIT - END_LIMIT;
+                    int factor = phase - END_LIMIT;
+                    blended_score = ((middle_score * factor) + (end_score * (range - factor))) / range;
+                }
+                score += blended_score;
             } else {
-                score += pst[pt][sq];
+                score += pst[pt][pst_sq];
             }
         }
     }
     return score;
 }
 
-int evaluate(Board *board, Color engine_color) {
-    int white = count_material_positional_value(board, WHITE);
-    int black = count_material_positional_value(board, BLACK);
+int evaluate(Board *board, Color color) {
+    int phase = get_game_phase(board);
 
-    int score = (engine_color == WHITE) ? (white - black) : (black - white);
+    int white = count_material_positional_value(board, WHITE, phase);
+    int black = count_material_positional_value(board, BLACK, phase);
+
+    int score = (color == WHITE) ? (white - black) : (black - white);
     return score;
 }
 
 int score_move(Board *board, Move *move) {
     int score = 0;
+    
     if (get_bit(board->occupied, move->end)) {
         PieceType victim = get_piece(board, move->end, OPP_COLOR(move->color));
 
@@ -118,7 +217,7 @@ int score_move(Board *board, Move *move) {
             score = 1000 + (material_values[victim] * 10) - material_values[move->piece];
         }
     } else {
-        if (move->color == WHITE) {
+        if (move->color == BLACK) {
             score += pst[move->piece][move->end ^ 56];
         } else {
             score += pst[move->piece][move->end];
@@ -131,8 +230,17 @@ void sort_moves(Board *board, MoveList *move_list) {
     int moves_count = move_list->count;
     int move_scores[MAX_MOVES];
 
+    uint64_t index = board->current_zobrist_key & tt_mask;
+    PositionData *entry = &trans_table[index];
+    bool in_entry = (entry->key == board->current_zobrist_key);
+
     for (int i = 0; i < move_list->count; i++) {
-        move_scores[i] = score_move(board, &(move_list->moves[i]));
+        if (in_entry && move_list->moves[i].start == entry->best_move.start && 
+            move_list->moves[i].end == entry->best_move.end && move_list->moves[i].piece == entry->best_move.piece) {
+            move_scores[i] = 1000000;
+        } else {
+            move_scores[i] = score_move(board, &(move_list->moves[i]));
+        }
     }
 
     // sort moves
@@ -152,60 +260,58 @@ void sort_moves(Board *board, MoveList *move_list) {
     }
 }
 
-int quiescence(Board *board, Color color, Color engine_color, bool maximizing, int alpha, int beta) {
-    int stand_pat = evaluate(board, engine_color);
+int quiescence(Board *board, Color color, int ply, int alpha, int beta) {
+    int stand_pat = evaluate(board, color);
 
-    if (maximizing) {
-        if (stand_pat > alpha) alpha = stand_pat;
-        if (alpha >= beta) return stand_pat;
+    if (stand_pat >= beta) return beta;
+    if (alpha < stand_pat) alpha = stand_pat;
 
-        int best_eval = stand_pat;
+    MoveList capture_list;
+    generate_legal_moves(board, color, &capture_list, true);
+    sort_moves(board, &capture_list);
 
-        MoveList capture_list;
-        generate_legal_moves(board, color, &capture_list, true);
-        sort_moves(board, &capture_list);
+    for (int i = 0; i < capture_list.count; i++) {
+        Move move = capture_list.moves[i];
+        move_piece(board, move);
+        int eval = -quiescence(board, OPP_COLOR(color), ply + 1, -beta, -alpha);
+        reverse_move(board, move);
 
-        for (int i = 0; i < capture_list.count; i++) {
-            Move move = capture_list.moves[i];
-            move_piece(board, move);
-            int eval = quiescence(board, OPP_COLOR(color), engine_color, false, alpha, beta);
-            reverse_move(board, move);
-
-            if (eval > best_eval) best_eval = eval;
-            if (best_eval > alpha) alpha = best_eval;
-            if (alpha >= beta) break;
-        }
-        return best_eval;
-    } else {
-        if (stand_pat < beta) beta = stand_pat;
-        if (alpha >= beta) return stand_pat;
-
-        int best_eval = stand_pat;
-
-        MoveList capture_list;
-        generate_legal_moves(board, color, &capture_list, true);
-        sort_moves(board, &capture_list);
-
-        for (int i = 0; i < capture_list.count; i++) {
-            Move move = capture_list.moves[i];
-            move_piece(board, move);
-            int eval = quiescence(board, OPP_COLOR(color), engine_color, true, alpha, beta);
-            reverse_move(board, move);
-
-            if (eval < best_eval) best_eval = eval;
-            if (best_eval < beta) beta = best_eval;
-            if (alpha >= beta) break;
-        }
-        return best_eval;
+        if (eval >= beta) return beta;
+        if (eval > alpha) alpha = eval;
     }
+    return alpha;
 }
 
-int search(Board *board, int depth, Color color, Color engine_color, bool maximizing, int alpha, int beta) {
+int search(Board *board, int depth, int ply, Color color, int alpha, int beta) {
+    uint64_t index = board->current_zobrist_key & tt_mask;
+    PositionData *entry = &trans_table[index];
+    int orig_alpha = alpha;
+
+    if (entry->key == board->current_zobrist_key) {
+        if (entry->depth >= depth) {
+            int stored_score = entry->score;
+            if (stored_score > MATE_EVAL - 100) stored_score -= ply;
+            else if (stored_score < -MATE_EVAL + 100) stored_score += ply;
+
+            if (entry->type == TT_EXACT) {
+                return stored_score;
+            } else if (entry->type == TT_BETA && stored_score >= beta) {
+                return beta;
+            } else if (entry->type == TT_ALPHA && stored_score <= alpha) {
+                return alpha;
+            }
+        }
+    }
+
+    if (is_repetition(board, 3)) {
+        return 0;
+    }
+    
     if (depth == 0) {
         if (in_check(board, color)) {
             depth++;
         } else {
-            return quiescence(board, color, engine_color, maximizing, alpha, beta);
+            return quiescence(board, color, ply, alpha, beta);
         }
     }
     MoveList move_list;
@@ -213,67 +319,118 @@ int search(Board *board, int depth, Color color, Color engine_color, bool maximi
 
     if (move_list.count == 0) {
         if (in_check(board, color)) {
-            return (maximizing) ? -MATE_EVAL : MATE_EVAL;
-        } else {
-            return 0;
-        }
+            return -(MATE_EVAL - ply);
+        } return 0;
     }
 
     sort_moves(board, &move_list);
-
-    if (maximizing) {
-        int best_eval = -INF;
-        for (int i = 0; i < move_list.count; i++) {
-            Move move = move_list.moves[i];
-            move_piece(board, move);
-            int eval = search(board, depth - 1, OPP_COLOR(color), engine_color, false, alpha, beta);
-            reverse_move(board, move);
-
-            if (eval > best_eval) best_eval = eval;
-            if (best_eval > alpha) alpha = best_eval;
-            if (alpha >= beta) break;
-        }
-        return best_eval;
-    } else {
-        int best_eval = INF;
-        for (int i = 0; i < move_list.count; i++) {
-            Move move = move_list.moves[i];
-            move_piece(board, move);
-            int eval = search(board, depth - 1, OPP_COLOR(color), engine_color, true, alpha, beta);
-            reverse_move(board, move);
-
-            if (eval < best_eval) best_eval = eval;
-            if (best_eval < beta) beta = best_eval;
-            if (alpha >= beta) break;
-        }
-        return best_eval;
-    }
-}
-
-Move engine_move(Board *board, Color color) {
-    // Dont forget to tack on the promotion piece to the Move struct
-    // and is_castling and is_enpassant
-    MoveList move_list;
-    generate_legal_moves(board, color, &move_list, false);
-    sort_moves(board, &move_list);
-
-    Move best_move = move_list.moves[0];
     int best_eval = -INF;
-    int alpha = -INF;
+    Move best_move = move_list.moves[0];
 
     for (int i = 0; i < move_list.count; i++) {
         Move move = move_list.moves[i];
         move_piece(board, move);
-        int eval = search(board, MAX_DEPTH - 1, OPP_COLOR(color), color, false, alpha, INF);
+        int eval = -search(board, depth - 1, ply + 1, OPP_COLOR(color), -beta, -alpha);
         reverse_move(board, move);
 
         if (eval > best_eval) {
             best_eval = eval;
             best_move = move;
         }
-        if (best_eval > alpha) {
-            alpha = best_eval;
-        }
+        if (best_eval > alpha) alpha = best_eval;
+        if (alpha >= beta) break;
     }
+
+    if (entry->key == 0 || entry->age != tt_current_age || depth >= entry->depth) {
+        int store_score = best_eval;
+        if (store_score > MATE_EVAL - 100) store_score += ply;
+        else if (store_score < -MATE_EVAL + 100) store_score -= ply;
+        entry->score = store_score;
+
+        if (best_eval <= orig_alpha) { 
+            entry->type = TT_ALPHA;
+        } else if (best_eval >= beta) {
+            entry->type = TT_BETA;
+        } else {
+            entry->type = TT_EXACT;
+        }
+
+        entry->key = board->current_zobrist_key;
+        entry->depth = depth;
+        entry->best_move = best_move;
+        entry->ply = ply;
+        entry->age = tt_current_age;
+    }
+
+    return best_eval;
+}
+
+Move engine_move(Board *board, Color color) {
+    // Dont forget to tack on the promotion piece to the Move struct
+    // and is_castling and is_enpassant
+    tt_current_age++;
+    MoveList move_list;
+    generate_legal_moves(board, color, &move_list, false);
+
+    Move best_move = move_list.moves[0];
+    int final_depth_reached = 0;
+    int final_best_eval = -INF;
+
+    clock_t start_time = clock();
+    double time_limit = 2.5;
+    bool time_out = false;
+
+    for (int current_depth = 1; current_depth <= 64; current_depth++) {
+        sort_moves(board, &move_list);
+        
+        int best_eval = -INF;
+        int alpha = -INF;
+        int beta = INF;
+        Move depth_best_move = best_move;
+
+        for (int i = 0; i < move_list.count; i++) {
+            if (i > 0) {
+                double elapsed = (double)(clock() - start_time) / CLOCKS_PER_SEC;
+                if (elapsed >= time_limit) {
+                    time_out = true;
+                    break;
+                }
+            }
+            Move move = move_list.moves[i];
+            move_piece(board, move);
+            int eval = -search(board, current_depth - 1, 1, OPP_COLOR(color), -beta, -alpha);
+            reverse_move(board, move);
+
+            if (eval > best_eval) {
+                best_eval = eval;
+                depth_best_move = move;
+            }
+            if (best_eval > alpha) {
+                alpha = best_eval;
+            }
+        }
+
+        if (time_out) break;
+
+        best_move = depth_best_move;
+        final_depth_reached = current_depth;
+        final_best_eval = best_eval;
+
+        uint64_t root_index = board->current_zobrist_key & tt_mask;
+        PositionData *root_entry = &trans_table[root_index];
+        root_entry->key = board->current_zobrist_key;
+        root_entry->depth = current_depth;
+        root_entry->score = best_eval;
+        root_entry->best_move = best_move;
+        root_entry->type = TT_EXACT;
+        root_entry->age = tt_current_age;
+        root_entry->ply = 0;
+
+        double total_elapsed = (double)(clock() - start_time) / CLOCKS_PER_SEC;
+        if (total_elapsed * 4.0 >= time_limit) break;
+    }
+    double time_spent = (double)(clock() - start_time) / CLOCKS_PER_SEC;
+    printf("Depth: %d / Score: %d / Time: %.3f seconds\n", 
+            final_depth_reached, final_best_eval, time_spent);
     return best_move;
 }

@@ -658,13 +658,13 @@ bool is_stalemate(Board* board, Color color) {
     return (!has_legal_moves(board, color));
 }
 
-bool is_repetition(Board *board) { 
+bool is_repetition(Board *board, int max) { 
     int count = 0;
     uint64_t current_key = board->zobrist_history[board->zobrist_history_count - 1];
     for (int i = board->zobrist_history_count - 1; i >= 0; i -= 2) {
         if (board->zobrist_history[i] == current_key) count++;
     }
-    return count >= 3;
+    return count >= max;
 }
 
 bool insufficient_material(Board* board) {

@@ -71,10 +71,16 @@ typedef struct {
     PieceType captured_piece;
 } UndoState;
 
+typedef enum {TT_EXACT, TT_BETA, TT_ALPHA} TT_Type;
+
 typedef struct {
+    uint64_t key;
     int score;
     int depth;
+    int ply;
     Move best_move;
+    TT_Type type;
+    uint8_t age;
 } PositionData;
 
 #define MAX_MOVE_HISTORY 1024 // max moves in game
@@ -125,7 +131,7 @@ bool has_legal_moves(Board *board, Color color);
 bool is_checkmate(Board *board, Color color);
 bool is_stalemate(Board* board, Color color);
 bool insufficient_material(Board* board);
-bool is_repetition(Board *board);
+bool is_repetition(Board *board, int max);
 void print_bitboard(uint64_t board);
 void print_board(Board* board);
 
