@@ -195,6 +195,8 @@ int count_material_positional_value(Board *board, Color color, int phase) {
     return score;
 }
 
+#define TEMPO_BONUS 15
+
 int evaluate(Board *board, Color color) {
     int phase = get_game_phase(board);
 
@@ -202,6 +204,7 @@ int evaluate(Board *board, Color color) {
     int black = count_material_positional_value(board, BLACK, phase);
 
     int score = (color == WHITE) ? (white - black) : (black - white);
+    score += TEMPO_BONUS;
     return score;
 }
 
