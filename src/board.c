@@ -603,9 +603,9 @@ void generate_legal_moves(Board* board, Color color, MoveList* list, bool filter
             for (int i = 0; i < end_sq_count; i++) {
                 Move move = {.start = sq, .end = possible_end_sqs[i], .piece = pt, .color = color, 
                             .promotion = NO_PIECE, .is_castling = false, .is_enpassant = false};
-                if (filter_captures && !get_bit(board->occupied, possible_end_sqs[i]) && !move.is_enpassant) continue;
                 move.is_castling = is_castle_move(move);
                 move.is_enpassant = is_enpassant(board, move);
+                if (filter_captures && !get_bit(board->occupied, possible_end_sqs[i]) && !move.is_enpassant) continue;
                 if (is_legal(board, move)) {
                     if (PROMOTION(move.piece, move.end)) {
                         for (int pt = KNIGHT; pt < KING; pt++) {

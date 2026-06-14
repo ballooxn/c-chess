@@ -20,8 +20,6 @@ int material_values[6] = {1, 3, 3, 5, 9, 0};
 #define MATE_EVAL 100000
 #define INF 1000000 
 
-#define MAX_LEGAL_MOVES 218
-
 const int pst[6][64] = {
     [PAWN] = {
         0, 0, 0, 0, 0, 0, 0, 0,
@@ -228,7 +226,7 @@ int score_move(Board *board, Move *move) {
 
 void sort_moves(Board *board, MoveList *move_list) {
     int moves_count = move_list->count;
-    int move_scores[MAX_MOVES];
+    int move_scores[MAX_LEGAL_MOVES];
 
     uint64_t index = board->current_zobrist_key & tt_mask;
     PositionData *entry = &trans_table[index];
@@ -236,7 +234,8 @@ void sort_moves(Board *board, MoveList *move_list) {
 
     for (int i = 0; i < move_list->count; i++) {
         if (in_entry && move_list->moves[i].start == entry->best_move.start && 
-            move_list->moves[i].end == entry->best_move.end && move_list->moves[i].piece == entry->best_move.piece) {
+            move_list->moves[i].end == entry->best_move.end && move_list->moves[i].piece == entry->best_move.piece && 
+            move_list->moves[i].promotion == entry->best_move.promotion) {
             move_scores[i] = 1000000;
         } else {
             move_scores[i] = score_move(board, &(move_list->moves[i]));
@@ -303,7 +302,7 @@ int search(Board *board, int depth, int ply, Color color, int alpha, int beta) {
         }
     }
 
-    if (is_repetition(board, 3)) {
+    if (is_repetition(board, 3) || board->halfmove_clock >= 100) {
         return 0;
     }
     

@@ -90,7 +90,7 @@ int main(void) {
             winner = RESULT_STALEMATE;
         } else if (insufficient_material(&board)) {
             winner = RESULT_INSUFF_MATERIAL;
-        } else if (board.halfmove_clock >= 50) {
+        } else if (board.halfmove_clock >= 100) {
             winner = RESULT_50_MOVE;
         } else if (is_repetition(&board, 3)) {
             winner = RESULT_REPETITION;

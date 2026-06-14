@@ -26,13 +26,13 @@ typedef enum {RESULT_NONE, RESULT_WHITE_WINS, RESULT_BLACK_WINS, RESULT_STALEMAT
 #define OPP_COLOR(color)    (((color) == WHITE) ? BLACK : WHITE)
 #define PROMOTION(piece, end)   ((piece) == PAWN && (RANK_OF(end) == 7 || RANK_OF(end) == 0))
 
-inline void set_bit(uint64_t* bb, int sq) {
+static inline void set_bit(uint64_t* bb, int sq) {
     *bb |= (1ULL << sq);
 }
-inline void clear_bit(uint64_t* bb, int sq) {
+static inline void clear_bit(uint64_t* bb, int sq) {
     *bb &= ~(1ULL << sq);
 }
-inline bool get_bit(uint64_t bb, int sq) {
+static inline bool get_bit(uint64_t bb, int sq) {
     return (bb & (1ULL << sq)) != 0;
 }
 
@@ -106,10 +106,10 @@ typedef struct {
     int zobrist_history_count;
 } Board;
 
-#define MAX_MOVES 256
+#define MAX_LEGAL_MOVES 218
 
 typedef struct {
-    Move moves[MAX_MOVES];
+    Move moves[MAX_LEGAL_MOVES];
     int count;
 } MoveList;
 
