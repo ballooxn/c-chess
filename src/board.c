@@ -45,6 +45,8 @@ uint64_t black_pawn_attacks[SQUARES];
 uint64_t line[SQUARES][SQUARES];
 uint64_t between[SQUARES][SQUARES]; // First is the start_pos, second is the end_pos
 
+uint64_t passed_pawn_masks[COLOR_NUM][SQUARES];
+
 // bb = (black top, white bottom)
 // a8 b8 c8 d8 e8 f8 g8 h8 > 56 to 63
 // .....
@@ -279,6 +281,26 @@ void init_attacks(void)
     init_king_attacks();
     init_pawn_attacks();
     init_sliding_tables();
+}
+
+void init_passed_pawn_masks() {
+    for (Color color = WHITE; color <= BLACK; color++) {
+        for (int sq = 0; sq < 64; sq++) {
+            int file = FILE_OF(sq);
+            int rank = RANK_OF(sq);
+
+            uint64_t mask = 0ULL;
+
+            int dir = (color == WHITE) ? 1 : -1;
+
+            for (int r = rank + dir; 0 <= r && r <= 7; r += dir) {
+                set_bit(&mask, r * 8 + file);
+                if (file > 0) set_bit(&mask, r * 8 + (file - 1));
+                if (file < 7) set_bit(&mask, r * 8 + (file + 1));
+            }
+            passed_pawn_masks[color][sq] = mask;
+        }
+    }
 }
 
 void place_piece(Board *board, int sq, PieceType pt, Color color)

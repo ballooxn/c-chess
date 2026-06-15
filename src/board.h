@@ -51,6 +51,8 @@ extern uint64_t zobrist_black_to_move;
 extern uint64_t zobrist_castling[16];
 extern uint64_t zobrist_ep_file[8];
 
+extern uint64_t passed_pawn_masks[COLOR_NUM][64];
+
 typedef struct {
     int start;
     int end;
@@ -119,6 +121,7 @@ uint64_t xorshift(uint64_t *state);
 void init_zobrist(void);
 void init_zobrist_key(Board *board, Color side_to_move);
 void init_attacks(void);
+void init_passed_pawn_masks();
 PieceType get_piece(Board* board, int sq, Color color);
 bool is_castle_move(Move move);
 bool is_enpassant(const Board* board, Move move);

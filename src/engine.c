@@ -195,15 +195,85 @@ int count_material_positional_value(Board *board, Color color, int phase) {
     return score;
 }
 
+#define ISOLATED_SCORE -10
+#define DOUBLED_PAWN_SCORE -25
+
+// Only ranks 2-7, dont count back ranks.
+int PASSED_PAWN_SCORES[6] = {20, 25, 30, 40, 65, 150};
+
+#define FILE_A 0x0101010101010101ULL
+#define FILE_B (FILE_A << 1)
+#define FILE_C (FILE_A << 2)
+#define FILE_D (FILE_A << 3)
+#define FILE_E (FILE_A << 4)
+#define FILE_F (FILE_A << 5)
+#define FILE_G (FILE_A << 6)
+#define FILE_H (FILE_A << 7)
+
+uint64_t file_masks[8] = {
+    FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H
+};
+
+int count_pawn_scores(Board *board, Color color) {
+    // Loop through pawns.
+    int score = 0;
+
+    for (int file = 0; file < 8; file++) {
+        // check if pawn is doubled
+        uint64_t file_mask = file_masks[file];
+        uint64_t pawns_mask = board->pieces[color][PAWN] & file_mask;
+        int double_count = __builtin_popcountll(pawns_mask);
+        if (double_count > 1) {
+            score += ((double_count - 1) * DOUBLED_PAWN_SCORE);
+            // increase negative score for each extra pawn 
+        } else if (double_count < 1) {
+            continue; // no pawn on this file, don't check.
+        }
+
+        // Check if the pawn is isolated
+        uint64_t target_files = 0ULL;
+        if (file > 0) target_files |= file_masks[file - 1];
+        if (file < 7) target_files |= file_masks[file + 1];
+        if (__builtin_popcountll(board->pieces[color][PAWN] & target_files) == 0) {
+            score += ISOLATED_SCORE;
+        }
+        // loop through each pawn on file, check if passed pawn
+        while (pawns_mask) {
+            int sq = __builtin_ctzll(pawns_mask);
+            pawns_mask &= pawns_mask - 1;
+            uint64_t opp_pawns = board->pieces[OPP_COLOR(color)][PAWN];
+            if ((opp_pawns & passed_pawn_masks[color][sq]) == 0) {
+                if (color == WHITE) {
+                    score += PASSED_PAWN_SCORES[(RANK_OF(sq) - 1)];
+                } else {
+                    score += PASSED_PAWN_SCORES[abs(6 - RANK_OF(sq))];
+                }
+            }
+        }
+    }
+    return score;
+}
+
 #define TEMPO_BONUS 15
 
 int evaluate(Board *board, Color color) {
     int phase = get_game_phase(board);
 
-    int white = count_material_positional_value(board, WHITE, phase);
-    int black = count_material_positional_value(board, BLACK, phase);
+    int white_mat_pst = count_material_positional_value(board, WHITE, phase);
+    int black_mat_pst = count_material_positional_value(board, BLACK, phase);
+    
+    int white_pawn = count_pawn_scores(board, WHITE);
+    int black_pawn = count_pawn_scores(board, BLACK);
 
-    int score = (color == WHITE) ? (white - black) : (black - white);
+    int score = 0;
+    if (color == WHITE) {
+        score += white_mat_pst - black_mat_pst;
+        score += white_pawn - black_pawn;
+    } else {
+        score += black_mat_pst - white_mat_pst;
+        score += black_pawn - white_pawn;
+    }
+    
     score += TEMPO_BONUS;
     return score;
 }

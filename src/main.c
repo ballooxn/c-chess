@@ -31,6 +31,7 @@ int main(void) {
     init_attacks();
     init_zobrist();
     init_zobrist_key(&board, WHITE);
+    init_passed_pawn_masks();
 
     GameResult winner = RESULT_NONE;
     Color player;
