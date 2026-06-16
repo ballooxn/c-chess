@@ -309,8 +309,8 @@ void init_king_ring_masks() {
         int file = FILE_OF(sq);
         
         uint64_t mask = 0ULL;
-        if (RANK_OF(sq + 1) < 8) set_bit(&mask, sq + 1);
-        if (RANK_OF(sq - 1) > 0) set_bit(&mask, sq - 1);
+        if (FILE_OF(sq + 1) < 8) set_bit(&mask, sq + 1);
+        if (FILE_OF(sq - 1) > 0) set_bit(&mask, sq - 1);
         for (int dir = 1; dir >= -1; dir -= 2) {
             int right = sq + (9 * dir);
             int mid = sq + (8 * dir);

@@ -27,8 +27,8 @@
 
 // king safety scores
 #define KING_CENTER_SCORE -50
-#define PAWN_ONE_RANK_SCORE -10
-#define PAWN_TWO_RANKS_SCORE -20
+#define PAWN_PUSHED_ONE_RANK_SCORE -10
+#define PAWN_PUSHED_TWO_RANKS_SCORE -20
 #define PAWN_MISSING -35
 
 #define TEMPO_BONUS 15

@@ -299,8 +299,8 @@ int king_safety(Board *board, Color color, int phase) {
         int count2 = __builtin_popcountll(board->pieces[color][PAWN] & shield_2);
         int count3 = __builtin_popcountll(board->pieces[color][PAWN] & shield_3);
         // Pawn pushed up one rank ahead of king.
-        score += (PAWN_ONE_RANK_SCORE * count2);
-        score += (PAWN_TWO_RANKS_SCORE * count3);
+        score += (PAWN_PUSHED_ONE_RANK_SCORE * count2);
+        score += (PAWN_PUSHED_TWO_RANKS_SCORE * count3);
         int total_count = count1 + count2 + count3;
         if (total_count < 3) {
             score += (PAWN_MISSING * (3 - total_count));
