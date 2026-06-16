@@ -7,6 +7,8 @@
 #define RANK_OF(pos)            ((pos) / 8)
 #define FILE_OF(pos)            ((pos) % 8)
 #define DELTA(new, old)         (abs((new) - (old)))
+#define OPP_COLOR(color)        (((color) == WHITE) ? BLACK : WHITE)
+#define PROMOTION(piece, end)   ((piece) == PAWN && (RANK_OF(end) == 7 || RANK_OF(end) == 0))
 
 #define A1 0
 #define C1 2
@@ -22,9 +24,6 @@
 typedef enum {WHITE, BLACK, COLOR_NUM} Color;
 typedef enum {PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING, ALL, PIECE_NUM, NO_PIECE = -1} PieceType;
 typedef enum {RESULT_NONE, RESULT_WHITE_WINS, RESULT_BLACK_WINS, RESULT_STALEMATE, RESULT_INSUFF_MATERIAL, RESULT_REPETITION, RESULT_50_MOVE} GameResult;
-
-#define OPP_COLOR(color)    (((color) == WHITE) ? BLACK : WHITE)
-#define PROMOTION(piece, end)   ((piece) == PAWN && (RANK_OF(end) == 7 || RANK_OF(end) == 0))
 
 static inline void set_bit(uint64_t* bb, int sq) {
     *bb |= (1ULL << sq);
@@ -52,6 +51,7 @@ extern uint64_t zobrist_castling[16];
 extern uint64_t zobrist_ep_file[8];
 
 extern uint64_t passed_pawn_masks[COLOR_NUM][64];
+extern uint64_t king_ring_masks[64];
 
 typedef struct {
     int start;

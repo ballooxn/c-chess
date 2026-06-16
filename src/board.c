@@ -46,6 +46,7 @@ uint64_t line[SQUARES][SQUARES];
 uint64_t between[SQUARES][SQUARES]; // First is the start_pos, second is the end_pos
 
 uint64_t passed_pawn_masks[COLOR_NUM][SQUARES];
+uint64_t king_ring_masks[64];
 
 // bb = (black top, white bottom)
 // a8 b8 c8 d8 e8 f8 g8 h8 > 56 to 63
@@ -300,6 +301,25 @@ void init_passed_pawn_masks() {
             }
             passed_pawn_masks[color][sq] = mask;
         }
+    }
+}
+
+void init_king_ring_masks() {
+    for (int sq = 0; sq < 64; sq++) {
+        int file = FILE_OF(sq);
+        
+        uint64_t mask = 0ULL;
+        if (RANK_OF(sq + 1) < 8) set_bit(&mask, sq + 1);
+        if (RANK_OF(sq - 1) > 0) set_bit(&mask, sq - 1);
+        for (int dir = 1; dir >= -1; dir -= 2) {
+            int right = sq + (9 * dir);
+            int mid = sq + (8 * dir);
+            int left = sq + (7 * dir);
+            if (0 <= right && right <= 63 && FILE_OF(right) == file + 1) set_bit(&mask, right);
+            if (0 <= mid && mid <= 63 && FILE_OF(mid) == file) set_bit(&mask, mid);
+            if (0 <= left && left <= 63 && FILE_OF(left) == file - 1) set_bit(&mask, left);
+        }
+        king_ring_masks[sq] = mask;
     }
 }
 

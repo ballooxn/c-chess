@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 bool can_castle(Board* board, Color color, bool kingside);
+bool is_sliding_valid(Board *board, Move move);
 bool valid_move(Board *board, Move move);
 bool in_check(Board *board, Color color);
 bool is_legal(Board* board, Move move);

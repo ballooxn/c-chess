@@ -18,7 +18,8 @@ int material_values[6] = {1, 3, 3, 5, 9, 0};
 
 #define FLIP_BOARD_NUM 56
 #define MATE_EVAL 100000
-#define INF 1000000 
+#define INF 1000000
+#define MAX_PHASE 24 
 
 const int pst[6][64] = {
     [PAWN] = {
@@ -254,6 +255,127 @@ int count_pawn_scores(Board *board, Color color) {
     return score;
 }
 
+uint64_t get_pawn_shield_mask(int king_sq, Color color) {
+    int king_file = FILE_OF(king_sq);
+    int king_rank = RANK_OF(king_sq);
+    int dir = (color == WHITE) ? 1 : -1;
+    
+    uint64_t shield = 0ULL;
+    int shield_rank = king_rank + dir;
+
+    if (shield_rank >= 0 && shield_rank <= 7) {
+        set_bit(&shield, shield_rank * 8 + king_file);
+        if (king_file > 0) set_bit(&shield, shield_rank * 8 + (king_file - 1));
+        if (king_file < 7) set_bit(&shield, shield_rank * 8 + (king_file + 1));
+    }
+    return shield;
+}
+
+#define KING_CENTER_SCORE -50
+#define PAWN_ONE_RANK_SCORE -10
+#define PAWN_TWO_RANKS_SCORE -20
+#define PAWN_MISSING -35
+
+int KING_ATTACKER_WEIGHTS[6] = {0, 2, 2, 3, 5, 0};
+
+int king_safety_penalties[30] = {
+    0, 0, 5, 10, 20, 35, 60, 90, 120, 160, 225, 280, 300, 
+    325, 350, 370, 400, 430, 460, 500, 550, 600, 660, 720,
+    800, 900, 1000, 1100, 1200, 1300,
+};
+
+int king_safety(Board *board, Color color, int phase) {
+    int king_sq = __builtin_ctzll(board->pieces[color][KING]);
+    int king_file = FILE_OF(king_sq);
+    int king_rank = RANK_OF(king_sq);
+    int score = 0;
+
+    int back_rank = (color == WHITE) ? 0 : 7;
+    int pawn_rank = (color == WHITE) ? 1 : 6;
+    
+    if (king_file == 3 || king_file == 4) {
+        score += KING_CENTER_SCORE;
+    } else if (king_rank == back_rank || king_rank == pawn_rank) {
+        // check the three ranks ahead of king for pawns.
+        uint64_t shield_1 = get_pawn_shield_mask(king_sq, color);
+        uint64_t shield_2 = 0ULL;
+        uint64_t shield_3 = 0ULL;
+        if (color == WHITE) {
+            shield_2 = shield_1 << 8;
+            shield_3 = shield_1 << 16;
+        } else {
+            shield_2 = shield_1 >> 8;
+            shield_3 = shield_1 >> 16;
+        }
+        int count1 = __builtin_popcountll(board->pieces[color][PAWN] & shield_1);
+        int count2 = __builtin_popcountll(board->pieces[color][PAWN] & shield_2);
+        int count3 = __builtin_popcountll(board->pieces[color][PAWN] & shield_3);
+        // Pawn pushed up one rank ahead of king.
+        score += (PAWN_ONE_RANK_SCORE * count2);
+        score += (PAWN_TWO_RANKS_SCORE * count3);
+        int total_count = count1 + count2 + count3;
+        if (total_count < 3) {
+            score += (PAWN_MISSING * (3 - total_count));
+        }
+    }
+    
+    int total_attackers = 0;
+    int total_attack_weight = 0;
+    uint64_t king_ring = king_ring_masks[king_sq];
+
+    for (PieceType pt = KNIGHT; pt < KING; pt++) {
+        uint64_t bb = board->pieces[OPP_COLOR(color)][pt];
+
+        while (bb) {
+            int sq = __builtin_ctzll(bb);
+            bb &= bb - 1;
+
+            uint64_t ring_bb = king_ring;
+
+            if (pt == KNIGHT) {
+                uint64_t attacks = knight_attacks[sq];
+                if (attacks & ring_bb) {
+                    total_attackers++;
+                    total_attack_weight += KING_ATTACKER_WEIGHTS[pt];
+                }
+            } else {
+                while (ring_bb) {
+                    int ring_sq = __builtin_ctzll(ring_bb);
+                    ring_bb &= ring_bb - 1;
+
+                    if (line[sq][ring_sq] != 0) {
+                        int delta_rank = DELTA(RANK_OF(sq), RANK_OF(ring_sq));
+                        int delta_file = DELTA(FILE_OF(sq), FILE_OF(ring_sq));
+                        bool valid_dir = false;
+
+                        if (pt == BISHOP && (delta_rank == delta_file)) valid_dir = true;
+                        else if (pt == ROOK && (delta_rank == 0 || delta_file == 0)) valid_dir = true;
+                        else if (pt == QUEEN) valid_dir = true;
+
+                        if (valid_dir) {
+                            if ((between[sq][ring_sq] & board->occupied) == 0) {
+                                total_attackers++;
+                                total_attack_weight += KING_ATTACKER_WEIGHTS[pt];
+                                break;
+                            }
+                        }
+                    } 
+                }
+            }
+        }
+    }
+
+    if (total_attackers >= 2) {
+        if (total_attack_weight > 29) total_attack_weight = 29;
+        int penalty = king_safety_penalties[total_attack_weight];
+
+        penalty = (penalty * phase) / MAX_PHASE;
+        score -= penalty;
+    }
+
+    return score;  
+}
+
 #define TEMPO_BONUS 15
 
 int evaluate(Board *board, Color color) {
@@ -265,13 +387,18 @@ int evaluate(Board *board, Color color) {
     int white_pawn = count_pawn_scores(board, WHITE);
     int black_pawn = count_pawn_scores(board, BLACK);
 
+    int white_king_safety = king_safety(board, WHITE, phase);
+    int black_king_safety = king_safety(board, BLACK, phase);
+
     int score = 0;
     if (color == WHITE) {
         score += white_mat_pst - black_mat_pst;
         score += white_pawn - black_pawn;
+        score += white_king_safety - black_king_safety;
     } else {
         score += black_mat_pst - white_mat_pst;
         score += black_pawn - white_pawn;
+        score += black_king_safety - white_king_safety;
     }
     
     score += TEMPO_BONUS;
