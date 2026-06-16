@@ -32,6 +32,9 @@
 #define PAWN_MISSING -35
 
 #define TEMPO_BONUS 15
+#define BISHOP_PAIR_BONUS 30
+#define ROOK_HALF_OPEN_FILE_BONUS 15
+#define ROOK_OPEN_FILE_BONUS 22
 
 Move engine_move(Board *board, Color color);
 

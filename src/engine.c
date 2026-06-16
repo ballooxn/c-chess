@@ -16,6 +16,10 @@ uint8_t tt_current_age = 0;
 
 int material_values[6] = {100, 300, 315, 500, 900, 0};
 
+uint64_t file_masks[8] = {
+    FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H
+};
+
 const int pst[6][64] = {
     [PAWN] = {
         0, 0, 0, 0, 0, 0, 0, 0,
@@ -154,6 +158,9 @@ int get_game_phase(Board *board) {
 
 int count_material_positional_value(Board *board, Color color, int phase) {
     int score = 0;
+    int bishop_count = __builtin_popcountll(board->pieces[color][BISHOP]);
+    if (bishop_count >= 2) score += BISHOP_PAIR_BONUS;
+
     for (PieceType pt = PAWN; pt <= KING; pt++) {
         uint64_t bb = board->pieces[color][pt];
 
@@ -183,15 +190,23 @@ int count_material_positional_value(Board *board, Color color, int phase) {
             } else {
                 score += pst[pt][pst_sq];
             }
+            if (pt == ROOK) {
+                uint64_t file_mask = file_masks[FILE_OF(sq)];
+                int own_pawn_count = __builtin_popcountll(board->pieces[color][PAWN] & file_mask);
+                int opp_pawn_count = __builtin_popcountll(board->pieces[OPP_COLOR(color)][PAWN] & file_mask);
+                if (own_pawn_count == 0 && opp_pawn_count == 0) {
+                    score += ROOK_OPEN_FILE_BONUS; 
+                } else if ((own_pawn_count >= 1 && opp_pawn_count == 0) || 
+                            (own_pawn_count == 0 && opp_pawn_count >= 1)) {
+                    score += ROOK_HALF_OPEN_FILE_BONUS;
+                }
+            }
         }
     }
     return score;
 }
 // Only ranks 2-7, dont count back ranks.
 int PASSED_PAWN_SCORES[6] = {20, 25, 30, 40, 65, 150};
-uint64_t file_masks[8] = {
-    FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H
-};
 
 int count_pawn_scores(Board *board, Color color) {
     // Loop through pawns.
@@ -349,29 +364,26 @@ int king_safety(Board *board, Color color, int phase) {
     return score;  
 }
 
+int sum_all_scores(Board *board, Color color, int phase) {
+    int score = 0;
+    score += count_material_positional_value(board, color, phase);
+    score += count_pawn_scores(board, color);
+    score += king_safety(board, color, phase);
+    return score;
+}
+
 int evaluate(Board *board, Color color) {
     int phase = get_game_phase(board);
 
-    int white_mat_pst = count_material_positional_value(board, WHITE, phase);
-    int black_mat_pst = count_material_positional_value(board, BLACK, phase);
-    
-    int white_pawn = count_pawn_scores(board, WHITE);
-    int black_pawn = count_pawn_scores(board, BLACK);
-
-    int white_king_safety = king_safety(board, WHITE, phase);
-    int black_king_safety = king_safety(board, BLACK, phase);
+    int white_score = sum_all_scores(board, WHITE, phase);
+    int black_score = sum_all_scores(board, BLACK, phase);
 
     int score = 0;
     if (color == WHITE) {
-        score += white_mat_pst - black_mat_pst;
-        score += white_pawn - black_pawn;
-        score += white_king_safety - black_king_safety;
+        score += white_score - black_score;
     } else {
-        score += black_mat_pst - white_mat_pst;
-        score += black_pawn - white_pawn;
-        score += black_king_safety - white_king_safety;
+        score += black_score - white_score;
     }
-    
     score += TEMPO_BONUS;
     return score;
 }
@@ -388,8 +400,10 @@ int score_move(Board *board, Move *move) {
     } else {
         if (move->color == BLACK) {
             score += pst[move->piece][move->end ^ 56];
+            score -= pst[move->piece][move->start ^ 56];
         } else {
             score += pst[move->piece][move->end];
+            score -= pst[move->piece][move->start];
         }
     }
     return score;
