@@ -14,8 +14,7 @@ PositionData trans_table[TT_SIZE];
 uint64_t tt_mask = TT_SIZE - 1;
 uint8_t tt_current_age = 0;
 
-int material_values[6] = {1, 3, 3, 5, 9, 0};
-#define MATERIAL_MULTIPLY 100
+int material_values[6] = {100, 300, 315, 500, 900, 0};
 
 const int pst[6][64] = {
     [PAWN] = {
@@ -162,7 +161,7 @@ int count_material_positional_value(Board *board, Color color, int phase) {
             int sq = __builtin_ctzll(bb);
             bb &= bb - 1;
 
-            score += (material_values[pt] * MATERIAL_MULTIPLY);
+            score += material_values[pt];
 
             int pst_sq = (color == WHITE) ? sq : (sq ^ FLIP_BOARD_NUM);
 

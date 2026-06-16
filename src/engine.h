@@ -22,8 +22,8 @@
 #define END_LIMIT 4
 
 // pawn scores
-#define ISOLATED_SCORE -10
-#define DOUBLED_PAWN_SCORE -25
+#define ISOLATED_SCORE -15
+#define DOUBLED_PAWN_SCORE -20
 
 // king safety scores
 #define KING_CENTER_SCORE -50
