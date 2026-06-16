@@ -1,3 +1,4 @@
+#include "engine.h"
 #include "board.h"
 #include "move_parser.h"
 #include "validator.h"
@@ -15,11 +16,6 @@ uint8_t tt_current_age = 0;
 
 int material_values[6] = {1, 3, 3, 5, 9, 0};
 #define MATERIAL_MULTIPLY 100
-
-#define FLIP_BOARD_NUM 56
-#define MATE_EVAL 100000
-#define INF 1000000
-#define MAX_PHASE 24 
 
 const int pst[6][64] = {
     [PAWN] = {
@@ -157,9 +153,6 @@ int get_game_phase(Board *board) {
     return phase;
 }
 
-int MIDDLE_LIMIT = 12;
-int END_LIMIT = 4;
-
 int count_material_positional_value(Board *board, Color color, int phase) {
     int score = 0;
     for (PieceType pt = PAWN; pt <= KING; pt++) {
@@ -195,22 +188,8 @@ int count_material_positional_value(Board *board, Color color, int phase) {
     }
     return score;
 }
-
-#define ISOLATED_SCORE -10
-#define DOUBLED_PAWN_SCORE -25
-
 // Only ranks 2-7, dont count back ranks.
 int PASSED_PAWN_SCORES[6] = {20, 25, 30, 40, 65, 150};
-
-#define FILE_A 0x0101010101010101ULL
-#define FILE_B (FILE_A << 1)
-#define FILE_C (FILE_A << 2)
-#define FILE_D (FILE_A << 3)
-#define FILE_E (FILE_A << 4)
-#define FILE_F (FILE_A << 5)
-#define FILE_G (FILE_A << 6)
-#define FILE_H (FILE_A << 7)
-
 uint64_t file_masks[8] = {
     FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H
 };
@@ -270,11 +249,6 @@ uint64_t get_pawn_shield_mask(int king_sq, Color color) {
     }
     return shield;
 }
-
-#define KING_CENTER_SCORE -50
-#define PAWN_ONE_RANK_SCORE -10
-#define PAWN_TWO_RANKS_SCORE -20
-#define PAWN_MISSING -35
 
 int KING_ATTACKER_WEIGHTS[6] = {0, 2, 2, 3, 5, 0};
 
@@ -376,8 +350,6 @@ int king_safety(Board *board, Color color, int phase) {
     return score;  
 }
 
-#define TEMPO_BONUS 15
-
 int evaluate(Board *board, Color color) {
     int phase = get_game_phase(board);
 
@@ -441,7 +413,6 @@ void sort_moves(Board *board, MoveList *move_list) {
             move_scores[i] = score_move(board, &(move_list->moves[i]));
         }
     }
-
     // sort moves
 
     for (int step = 0; step < moves_count - 1; ++step) {

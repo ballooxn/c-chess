@@ -7,9 +7,11 @@ Beat 2000 ELO chess.com engine (Level 16 expert)
 
 To-do:
 test insufficient material
+Rework move generation
 
 Count in mobility (only slightly) (mobility of engine - mobility of opponent)
-King safety
+Check for rooks on open files.
+Small bonus for bishop pair.
 
 Add opening book
 
